@@ -115,13 +115,36 @@
           <button id="tabSplit" class="tab" type="button">Split</button>
         </div>
         <div id="previewSummary" class="preview-summary">No report loaded.</div>
+        <div class="cards">
+          <div class="card">
+            <div class="label">Total</div>
+            <div id="summaryTotal" class="value">-</div>
+          </div>
+          <div class="card">
+            <div class="label">Failed</div>
+            <div id="summaryFailed" class="value">-</div>
+          </div>
+          <div class="card">
+            <div class="label">Avg (ms)</div>
+            <div id="summaryAvg" class="value">-</div>
+          </div>
+          <div class="card">
+            <div class="label">2xx / 4xx / 5xx</div>
+            <div id="summaryGroups" class="value">-</div>
+          </div>
+        </div>
         <div class="preview">
           <div id="splitPreview" class="split hidden">
             <iframe id="htmlPreview" title="HTML Preview"></iframe>
+            <div id="splitResizer" class="resizer" title="Drag to resize"></div>
             <pre id="jsonPreview" class="hidden"></pre>
           </div>
           <iframe id="htmlSoloPreview" title="HTML Preview"></iframe>
           <pre id="jsonSoloPreview" class="hidden"></pre>
+        </div>
+        <div class="failures">
+          <div class="failures-title">Failed Requests</div>
+          <ul id="failureList" class="failure-list"></ul>
         </div>
       </section>
     </main>

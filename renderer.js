@@ -31,6 +31,12 @@ const historySearch = el("historySearch");
 const filterAll = el("filterAll");
 const filterOk = el("filterOk");
 const filterFail = el("filterFail");
+const splitResizer = el("splitResizer");
+const summaryTotal = el("summaryTotal");
+const summaryFailed = el("summaryFailed");
+const summaryAvg = el("summaryAvg");
+const summaryGroups = el("summaryGroups");
+const failureList = el("failureList");
 
 let historyCache = [];
 let historyFilter = "all";
@@ -193,9 +199,57 @@ async function loadJsonSummary(jsonPath, cachedText) {
       return hasAssertionError || ex.error;
     });
     previewSummary.textContent = `Executions: ${executions.length} · Failed: ${failed.length}`;
+
+    const times = executions.map((ex) => ex.response?.responseTime || 0);
+    const avg = times.length ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : 0;
+
+    const groups = { "2": 0, "4": 0, "5": 0 };
+    executions.forEach((ex) => {
+      const code = ex.response?.code;
+      if (!code) return;
+      const g = String(Math.floor(code / 100));
+      if (groups[g] !== undefined) groups[g] += 1;
+    });
+
+    summaryTotal.textContent = String(executions.length);
+    summaryFailed.textContent = String(failed.length);
+    summaryAvg.textContent = String(avg);
+    summaryGroups.textContent = `${groups["2"]} / ${groups["4"]} / ${groups["5"]}`;
+
+    renderFailureList(failed);
   } catch (e) {
     previewSummary.textContent = `Failed to parse JSON: ${e.message}`;
   }
+}
+
+function renderFailureList(failed) {
+  failureList.innerHTML = "";
+  if (!failed.length) {
+    const li = document.createElement("li");
+    li.textContent = "No failures.";
+    failureList.appendChild(li);
+    return;
+  }
+
+  failed.slice(0, 50).forEach((ex) => {
+    const li = document.createElement("li");
+    const method = ex?.item?.request?.method || "-";
+    const url = ex?.item?.request?.url?.raw || ex?.item?.request?.url || "-";
+    const status = ex?.response?.code || "-";
+    const err = ex?.error?.message || (ex?.assertions || []).find((a) => a.error)?.error?.message || "Assertion failed";
+
+    li.innerHTML = `
+      <div class="row">
+        <div><strong>${method}</strong> <span class="status">${status}</span></div>
+        <div>${ex?.item?.name || ""}</div>
+      </div>
+      <div class="row">
+        <div class="url">${url}</div>
+        <div>${err}</div>
+      </div>
+    `;
+    failureList.appendChild(li);
+  });
 }
 
 tabHtml.addEventListener("click", () => {
@@ -208,6 +262,22 @@ tabJson.addEventListener("click", () => {
 
 tabSplit.addEventListener("click", () => {
   setPreviewMode("split");
+});
+
+let isDragging = false;
+splitResizer.addEventListener("mousedown", () => {
+  isDragging = true;
+});
+window.addEventListener("mouseup", () => {
+  isDragging = false;
+});
+window.addEventListener("mousemove", (e) => {
+  if (!isDragging) return;
+  const rect = splitPreview.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const leftPct = Math.max(20, Math.min(80, (x / rect.width) * 100));
+  splitPreview.style.setProperty("--split-left", `${leftPct}%`);
+  splitPreview.style.setProperty("--split-right", `${100 - leftPct}%`);
 });
 
 runBtn.addEventListener("click", async () => {
@@ -245,6 +315,9 @@ runBtn.addEventListener("click", async () => {
   const res = await window.api.runNewman(payload);
   if (res.ok) {
     statusLine.textContent = `Done. JSON: ${res.reportJson} · HTML: ${res.reportHtml}`;
+    if (res.reportJson) {
+      showJsonPreview(res.reportJson, res.reportHtml);
+    }
   } else {
     statusLine.textContent = `Failed: ${res.error}`;
   }
