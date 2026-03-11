@@ -20,8 +20,20 @@ const historyList = el("historyList");
 const statusLine = el("statusLine");
 const tabHtml = el("tabHtml");
 const tabJson = el("tabJson");
+const tabSplit = el("tabSplit");
 const htmlPreview = el("htmlPreview");
 const jsonPreview = el("jsonPreview");
+const htmlSoloPreview = el("htmlSoloPreview");
+const jsonSoloPreview = el("jsonSoloPreview");
+const splitPreview = el("splitPreview");
+const previewSummary = el("previewSummary");
+const historySearch = el("historySearch");
+const filterAll = el("filterAll");
+const filterOk = el("filterOk");
+const filterFail = el("filterFail");
+
+let historyCache = [];
+let historyFilter = "all";
 
 function appendLog(line) {
   const div = document.createElement("div");
@@ -34,8 +46,30 @@ window.api.onRunLog((msg) => appendLog(msg));
 
 async function refreshHistory() {
   const history = await window.api.getHistory();
+  historyCache = history;
+  renderHistory();
+}
+
+function setFilter(next) {
+  historyFilter = next;
+  filterAll.classList.toggle("active", next === "all");
+  filterOk.classList.toggle("active", next === "ok");
+  filterFail.classList.toggle("active", next === "fail");
+  renderHistory();
+}
+
+function renderHistory() {
+  const q = historySearch.value.trim().toLowerCase();
+  const filtered = historyCache.filter((item) => {
+    if (historyFilter === "ok" && !item.ok) return false;
+    if (historyFilter === "fail" && item.ok) return false;
+    if (!q) return true;
+    const hay = `${item.id} ${item.collectionPath} ${item.environmentPath || ""} ${item.outputDir}`;
+    return hay.toLowerCase().includes(q);
+  });
+
   historyList.innerHTML = "";
-  history.forEach((item) => {
+  filtered.forEach((item) => {
     const li = document.createElement("li");
     li.className = item.ok ? "ok" : "fail";
 
@@ -46,6 +80,15 @@ async function refreshHistory() {
     const meta = document.createElement("div");
     meta.className = "meta";
     meta.textContent = `${item.startedAt} → ${item.endedAt}`;
+
+    const badges = document.createElement("div");
+    badges.className = "badges";
+    if (!item.ok) {
+      const b = document.createElement("span");
+      b.className = "badge fail";
+      b.textContent = item.error ? `Error: ${item.error}` : "Error";
+      badges.appendChild(b);
+    }
 
     const links = document.createElement("div");
     links.className = "links";
@@ -67,17 +110,18 @@ async function refreshHistory() {
           return;
         }
         if (htmlPath) {
-          showHtmlPreview(htmlPath);
+          showHtmlPreview(htmlPath, item.reportJson);
           return;
         }
         if (jsonPath) {
-          showJsonPreview(jsonPath);
+          showJsonPreview(jsonPath, item.reportHtml);
         }
       });
     });
 
     li.appendChild(title);
     li.appendChild(meta);
+    li.appendChild(badges);
     li.appendChild(links);
     historyList.appendChild(li);
   });
@@ -88,40 +132,82 @@ pickDirBtn.addEventListener("click", async () => {
   if (dir) outputDirInput.value = dir;
 });
 
-function showHtmlPreview(filePath) {
-  htmlPreview.src = `file:///${filePath.replace(/\\\\/g, "/")}`;
-  htmlPreview.classList.remove("hidden");
-  jsonPreview.classList.add("hidden");
-  tabHtml.classList.add("active");
-  tabJson.classList.remove("active");
+function setPreviewMode(mode) {
+  const isHtml = mode === "html";
+  const isJson = mode === "json";
+  const isSplit = mode === "split";
+
+  tabHtml.classList.toggle("active", isHtml);
+  tabJson.classList.toggle("active", isJson);
+  tabSplit.classList.toggle("active", isSplit);
+
+  splitPreview.classList.toggle("hidden", !isSplit);
+  htmlSoloPreview.classList.toggle("hidden", !isHtml);
+  jsonSoloPreview.classList.toggle("hidden", !isJson);
+
+  if (isSplit) {
+    htmlPreview.classList.remove("hidden");
+    jsonPreview.classList.remove("hidden");
+  }
 }
 
-async function showJsonPreview(filePath) {
+function showHtmlPreview(htmlPath, jsonPath) {
+  htmlPreview.src = `file:///${htmlPath.replace(/\\\\/g, "/")}`;
+  htmlSoloPreview.src = `file:///${htmlPath.replace(/\\\\/g, "/")}`;
+  if (jsonPath) {
+    loadJsonSummary(jsonPath);
+  }
+  setPreviewMode("html");
+}
+
+async function showJsonPreview(jsonPath, htmlPath) {
   try {
-    const res = await fetch(`file:///${filePath.replace(/\\\\/g, "/")}`);
+    const res = await fetch(`file:///${jsonPath.replace(/\\\\/g, "/")}`);
     const text = await res.text();
     jsonPreview.textContent = text;
+    jsonSoloPreview.textContent = text;
+    loadJsonSummary(jsonPath, text);
   } catch (e) {
     jsonPreview.textContent = `Failed to load JSON: ${e.message}`;
+    jsonSoloPreview.textContent = `Failed to load JSON: ${e.message}`;
   }
-  jsonPreview.classList.remove("hidden");
-  htmlPreview.classList.add("hidden");
-  tabJson.classList.add("active");
-  tabHtml.classList.remove("active");
+  if (htmlPath) {
+    htmlPreview.src = `file:///${htmlPath.replace(/\\\\/g, "/")}`;
+    htmlSoloPreview.src = `file:///${htmlPath.replace(/\\\\/g, "/")}`;
+  }
+  setPreviewMode("json");
+}
+
+async function loadJsonSummary(jsonPath, cachedText) {
+  try {
+    let resolved = cachedText;
+    if (!resolved) {
+      const res = await fetch(`file:///${jsonPath.replace(/\\\\/g, "/")}`);
+      resolved = await res.text();
+    }
+    const data = JSON.parse(resolved);
+    const executions = data?.run?.executions || [];
+    const failed = executions.filter((ex) => {
+      const assertions = ex.assertions || [];
+      const hasAssertionError = assertions.some((a) => a.error);
+      return hasAssertionError || ex.error;
+    });
+    previewSummary.textContent = `Executions: ${executions.length} · Failed: ${failed.length}`;
+  } catch (e) {
+    previewSummary.textContent = `Failed to parse JSON: ${e.message}`;
+  }
 }
 
 tabHtml.addEventListener("click", () => {
-  tabHtml.classList.add("active");
-  tabJson.classList.remove("active");
-  htmlPreview.classList.remove("hidden");
-  jsonPreview.classList.add("hidden");
+  setPreviewMode("html");
 });
 
 tabJson.addEventListener("click", () => {
-  tabJson.classList.add("active");
-  tabHtml.classList.remove("active");
-  jsonPreview.classList.remove("hidden");
-  htmlPreview.classList.add("hidden");
+  setPreviewMode("json");
+});
+
+tabSplit.addEventListener("click", () => {
+  setPreviewMode("split");
 });
 
 runBtn.addEventListener("click", async () => {
@@ -165,5 +251,10 @@ runBtn.addEventListener("click", async () => {
 
   await refreshHistory();
 });
+
+historySearch.addEventListener("input", renderHistory);
+filterAll.addEventListener("click", () => setFilter("all"));
+filterOk.addEventListener("click", () => setFilter("ok"));
+filterFail.addEventListener("click", () => setFilter("fail"));
 
 refreshHistory();

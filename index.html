@@ -96,6 +96,14 @@
 
       <section class="panel">
         <h2>History</h2>
+        <div class="history-controls">
+          <input id="historySearch" type="text" placeholder="Search by id or path..." />
+          <div class="segmented">
+            <button id="filterAll" class="seg active" type="button">All</button>
+            <button id="filterOk" class="seg" type="button">OK</button>
+            <button id="filterFail" class="seg" type="button">Fail</button>
+          </div>
+        </div>
         <ul id="historyList" class="history"></ul>
       </section>
 
@@ -104,10 +112,16 @@
         <div class="tabs">
           <button id="tabHtml" class="tab active" type="button">HTML</button>
           <button id="tabJson" class="tab" type="button">JSON</button>
+          <button id="tabSplit" class="tab" type="button">Split</button>
         </div>
+        <div id="previewSummary" class="preview-summary">No report loaded.</div>
         <div class="preview">
-          <iframe id="htmlPreview" title="HTML Preview"></iframe>
-          <pre id="jsonPreview" class="hidden"></pre>
+          <div id="splitPreview" class="split hidden">
+            <iframe id="htmlPreview" title="HTML Preview"></iframe>
+            <pre id="jsonPreview" class="hidden"></pre>
+          </div>
+          <iframe id="htmlSoloPreview" title="HTML Preview"></iframe>
+          <pre id="jsonSoloPreview" class="hidden"></pre>
         </div>
       </section>
     </main>
