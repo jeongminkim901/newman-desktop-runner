@@ -9,6 +9,7 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1100,
     height: 760,
+    icon: path.join(__dirname, "build", "icon.png"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js")
     }
@@ -60,11 +61,19 @@ ipcMain.handle("run-newman", async (_event, payload) => {
     ip,
     token,
     extraVarsJson,
-    outputDir
+    outputDir,
+    reporters,
+    iterationCount,
+    timeoutRequest,
+    delayRequest,
+    bail
   } = payload;
 
   if (!collectionPath) {
     return { ok: false, error: "Collection file is required." };
+  }
+  if (!reporters || !reporters.length) {
+    return { ok: false, error: "Select at least one reporter." };
   }
 
   const runId = `run_${Date.now()}`;
@@ -105,13 +114,16 @@ ipcMain.handle("run-newman", async (_event, payload) => {
       {
         collection: collectionPath,
         environment: environmentPath || undefined,
-        reporters: ["cli", "json", "html"],
+        reporters,
         reporter: {
-          json: { export: reportJson },
-          html: { export: reportHtml }
+          json: reporters.includes("json") ? { export: reportJson } : undefined,
+          html: reporters.includes("html") ? { export: reportHtml } : undefined
         },
         envVar: envVars,
-        timeoutRequest: 300000
+        iterationCount: iterationCount || 1,
+        timeoutRequest: timeoutRequest || 300000,
+        delayRequest: delayRequest || 0,
+        bail: bail === true
       },
       (err, summary) => {
         logStream.end();

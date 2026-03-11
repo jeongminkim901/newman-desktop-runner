@@ -9,8 +9,13 @@
   </head>
   <body>
     <header>
-      <h1>Newman Desktop Runner</h1>
-      <div class="subtitle">Run Postman collections locally and generate HTML/JSON reports.</div>
+      <div class="brand">
+        <div class="logo"></div>
+        <div>
+          <h1>Newman Desktop Runner</h1>
+          <div class="subtitle">Run Postman collections locally and generate HTML/JSON reports.</div>
+        </div>
+      </div>
     </header>
 
     <main>
@@ -26,6 +31,22 @@
             <input id="environmentFile" type="file" accept=".json" />
           </label>
           <label>
+            Iterations
+            <input id="iterationCount" type="number" min="1" value="1" />
+          </label>
+          <label>
+            Timeout (ms)
+            <input id="timeoutRequest" type="number" min="1000" value="300000" />
+          </label>
+          <label>
+            Delay (ms)
+            <input id="delayRequest" type="number" min="0" value="0" />
+          </label>
+          <label class="toggle">
+            <input id="bail" type="checkbox" />
+            Stop on first failure
+          </label>
+          <label>
             IP
             <input id="ip" type="text" placeholder="192.168.0.1" />
           </label>
@@ -33,6 +54,21 @@
             Token
             <input id="token" type="text" placeholder="Bearer ..." />
           </label>
+          <div class="reporters wide">
+            <div class="label">Reporters</div>
+            <label class="toggle">
+              <input id="repCli" type="checkbox" checked />
+              CLI
+            </label>
+            <label class="toggle">
+              <input id="repHtml" type="checkbox" checked />
+              HTML
+            </label>
+            <label class="toggle">
+              <input id="repJson" type="checkbox" checked />
+              JSON
+            </label>
+          </div>
           <label class="wide">
             Extra Vars (JSON)
             <textarea id="extraVars" placeholder='{"key":"value"} or [{"key":"k","value":"v"}]'></textarea>
@@ -61,6 +97,18 @@
       <section class="panel">
         <h2>History</h2>
         <ul id="historyList" class="history"></ul>
+      </section>
+
+      <section class="panel">
+        <h2>Report Preview</h2>
+        <div class="tabs">
+          <button id="tabHtml" class="tab active" type="button">HTML</button>
+          <button id="tabJson" class="tab" type="button">JSON</button>
+        </div>
+        <div class="preview">
+          <iframe id="htmlPreview" title="HTML Preview"></iframe>
+          <pre id="jsonPreview" class="hidden"></pre>
+        </div>
       </section>
     </main>
 
