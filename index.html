@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Newman Desktop Runner</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Newman Desktop Runner</h1>
+      <div class="subtitle">Run Postman collections locally and generate HTML/JSON reports.</div>
+    </header>
+
+    <main>
+      <section class="panel">
+        <h2>Run Settings</h2>
+        <div class="grid">
+          <label>
+            Collection (required)
+            <input id="collectionFile" type="file" accept=".json" />
+          </label>
+          <label>
+            Environment (optional)
+            <input id="environmentFile" type="file" accept=".json" />
+          </label>
+          <label>
+            IP
+            <input id="ip" type="text" placeholder="192.168.0.1" />
+          </label>
+          <label>
+            Token
+            <input id="token" type="text" placeholder="Bearer ..." />
+          </label>
+          <label class="wide">
+            Extra Vars (JSON)
+            <textarea id="extraVars" placeholder='{"key":"value"} or [{"key":"k","value":"v"}]'></textarea>
+          </label>
+          <div class="wide">
+            <label>
+              Output Directory
+              <div class="row">
+                <input id="outputDir" type="text" placeholder="C:\\Users\\...\\Documents\\newman-reports" />
+                <button id="pickDirBtn" type="button">Browse</button>
+              </div>
+            </label>
+          </div>
+        </div>
+        <div class="actions">
+          <button id="runBtn" type="button">Run Newman</button>
+          <div id="statusLine" class="status">Idle</div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Live Logs</h2>
+        <div id="logBox" class="logbox"></div>
+      </section>
+
+      <section class="panel">
+        <h2>History</h2>
+        <ul id="historyList" class="history"></ul>
+      </section>
+    </main>
+
+    <script src="renderer.js"></script>
+  </body>
+</html>

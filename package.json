@@ -1,0 +1,31 @@
+{
+  "name": "newman-desktop-runner",
+  "version": "0.1.0",
+  "description": "Desktop UI for running Postman collections with Newman",
+  "main": "main.js",
+  "author": "jeongminkim901",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "lint": "echo \"(no lint yet)\"",
+    "build:win": "electron-builder --win --x64"
+  },
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "dependencies": {
+    "newman": "^6.2.1"
+  },
+  "build": {
+    "appId": "com.jeongmin.newmanrunner",
+    "productName": "Newman Desktop Runner",
+    "files": [
+      "**/*"
+    ],
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    }
+  }
+}
