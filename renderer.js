@@ -173,18 +173,29 @@ function setPreviewMode(mode) {
   }
 }
 
+async function loadHtmlPreview(htmlPath) {
+  try {
+    const res = await fetch(`file:///${htmlPath.replace(/\\/g, "/")}`);
+    const text = await res.text();
+    htmlPreview.srcdoc = text;
+    htmlSoloPreview.srcdoc = text;
+  } catch (e) {
+    htmlPreview.srcdoc = `<pre>Failed to load HTML: ${e.message}</pre>`;
+    htmlSoloPreview.srcdoc = `<pre>Failed to load HTML: ${e.message}</pre>`;
+  }
+}
+
 function showHtmlPreview(htmlPath, jsonPath) {
-  htmlPreview.src = `file:///${htmlPath.replace(/\\\\/g, "/")}`;
-  htmlSoloPreview.src = `file:///${htmlPath.replace(/\\\\/g, "/")}`;
+  htmlPreview.src = "about:blank";
+  htmlSoloPreview.src = "about:blank";
+  loadHtmlPreview(htmlPath);
   if (jsonPath) {
     loadJsonSummary(jsonPath);
   }
   setPreviewMode("html");
-}
-
-async function showJsonPreview(jsonPath, htmlPath) {
+}\nasync function showJsonPreview(jsonPath, htmlPath) {
   try {
-    const res = await fetch(`file:///${jsonPath.replace(/\\\\/g, "/")}`);
+    const res = await fetch(`file:///${jsonPath.replace(/\\/g, "/")}`);
     const text = await res.text();
     jsonPreview.textContent = text;
     jsonSoloPreview.textContent = text;
@@ -194,12 +205,10 @@ async function showJsonPreview(jsonPath, htmlPath) {
     jsonSoloPreview.textContent = `Failed to load JSON: ${e.message}`;
   }
   if (htmlPath) {
-    htmlPreview.src = `file:///${htmlPath.replace(/\\\\/g, "/")}`;
-    htmlSoloPreview.src = `file:///${htmlPath.replace(/\\\\/g, "/")}`;
+    await loadHtmlPreview(htmlPath);
   }
   setPreviewMode("json");
 }
-
 async function loadJsonSummary(jsonPath, cachedText) {
   try {
     let resolved = cachedText;
@@ -366,6 +375,7 @@ installUpdateBtn.addEventListener("click", async () => {
 });
 
 refreshHistory();
+
 
 
 
