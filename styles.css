@@ -143,6 +143,10 @@ textarea {
   resize: vertical;
 }
 
+.toggle.wide {
+  grid-column: span 2;
+}
+
 .wide {
   grid-column: span 2;
 }

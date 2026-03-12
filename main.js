@@ -123,6 +123,8 @@ ipcMain.handle("run-newman", async (_event, payload) => {
     ip,
     token,
     extraVarsJson,
+    invalidVarsJson,
+    runInvalidAlso,
     outputDir,
     reporters,
     iterationCount,
@@ -137,11 +139,6 @@ ipcMain.handle("run-newman", async (_event, payload) => {
   if (!reporters || !reporters.length) {
     return { ok: false, error: "Select at least one reporter." };
   }
-
-  const runId = `run_${Date.now()}`;
-  const reportJson = path.join(outputDir, `${runId}.json`);
-  const reportHtml = path.join(outputDir, `${runId}.html`);
-  const logPath = path.join(outputDir, `${runId}.log.txt`);
 
   const envVars = [];
   if (ip) envVars.push({ key: "ip", value: ip, enabled: true });
@@ -167,75 +164,132 @@ ipcMain.handle("run-newman", async (_event, payload) => {
     }
   }
 
-  const logStream = fs.createWriteStream(logPath, { flags: "a" });
+  const parseVarsJson = (json) => {
+    if (!json) return [];
+    const vars = [];
+    const parsed = JSON.parse(json);
+    if (Array.isArray(parsed)) {
+      parsed.forEach((item) => {
+        if (!item) return;
+        const key = item.key || item["key"];
+        const value = item.value || item["value"];
+        if (key) vars.push({ key: String(key), value: String(value), enabled: true });
+      });
+    } else if (parsed && typeof parsed === "object") {
+      Object.entries(parsed).forEach(([key, value]) => {
+        vars.push({ key: String(key), value: String(value), enabled: true });
+      });
+    }
+    return vars;
+  };
 
-  return new Promise((resolve) => {
+  const invalidOverrides = invalidVarsJson ? parseVarsJson(invalidVarsJson) : [];
+
+  const runOnce = (label, overrides) => {
+    const runId = `run_${Date.now()}_${label}`;
+    const reportJson = path.join(outputDir, `${runId}.json`);
+    const reportHtml = path.join(outputDir, `${runId}.html`);
+    const logPath = path.join(outputDir, `${runId}.log.txt`);
+    const logStream = fs.createWriteStream(logPath, { flags: "a" });
     const startedAt = new Date().toISOString();
+    const emitLog = (line) => {
+      logStream.write(line + "\n");
+      mainWindow.webContents.send("run-log", line);
+    };
 
-    newman.run(
-      {
-        collection: collectionPath,
-        environment: environmentPath || undefined,
-        reporters,
-        reporter: {
-          json: reporters.includes("json") ? { export: reportJson } : undefined,
-          html: reporters.includes("html") ? { export: reportHtml } : undefined
+    const mergedVars = [ ...envVars ];
+    overrides.forEach((item) => {
+      const idx = mergedVars.findIndex((v) => v.key === item.key);
+      if (idx >= 0) mergedVars[idx] = item;
+      else mergedVars.push(item);
+    });
+
+    return new Promise((resolve) => {
+      newman.run(
+        {
+          collection: collectionPath,
+          environment: environmentPath || undefined,
+          reporters,
+          reporter: {
+            json: reporters.includes("json") ? { export: reportJson } : undefined,
+            html: reporters.includes("html") ? { export: reportHtml } : undefined
+          },
+          envVar: mergedVars,
+          iterationCount: iterationCount || 1,
+          timeoutRequest: timeoutRequest || 300000,
+          delayRequest: delayRequest || 0,
+          bail: bail === true
         },
-        envVar: envVars,
-        iterationCount: iterationCount || 1,
-        timeoutRequest: timeoutRequest || 300000,
-        delayRequest: delayRequest || 0,
-        bail: bail === true
-      },
-      (err, summary) => {
-        logStream.end();
+        (err, summary) => {
+          logStream.end();
+          const endedAt = new Date().toISOString();
+          const history = readHistory();
+          history.unshift({
+            id: runId,
+            collectionPath,
+            environmentPath,
+            outputDir,
+            reportJson,
+            reportHtml,
+            logPath,
+            startedAt,
+            endedAt,
+            ok: !err,
+            error: err ? String(err.message || err) : null,
+            label
+          });
+          writeHistory(history.slice(0, 200));
 
-        const endedAt = new Date().toISOString();
-        const history = readHistory();
-        history.unshift({
-          id: runId,
-          collectionPath,
-          environmentPath,
-          outputDir,
-          reportJson,
-          reportHtml,
-          logPath,
-          startedAt,
-          endedAt,
-          ok: !err,
-          error: err ? String(err.message || err) : null
-        });
-        writeHistory(history.slice(0, 200));
+          if (err) {
+            return resolve({
+              ok: false,
+              error: err.message || String(err),
+              reportJson,
+              reportHtml,
+              logPath
+            });
+          }
 
-        if (err) {
           return resolve({
-            ok: false,
-            error: err.message || String(err),
+            ok: true,
+            stats: summary.run.stats,
             reportJson,
             reportHtml,
             logPath
           });
         }
-
-        return resolve({
-          ok: true,
-          stats: summary.run.stats,
-          reportJson,
-          reportHtml,
-          logPath
+      )
+        .on("start", () => {
+          emitLog(`[start][${label}] running newman...`);
+        })
+        .on("request", (_err, args) => {
+          if (!args) return;
+          const method = args.item?.request?.method || "-";
+          const url = args.request?.url?.toString?.() || args.item?.request?.url?.raw || "-";
+          emitLog(`[${label}] ${method} ${url}`);
+        })
+        .on("response", (_err, args) => {
+          if (!args) return;
+          const code = args.response?.code;
+          const name = args.item?.name || "";
+          emitLog(`[${label}] response ${code} ${name}`);
+        })
+        .on("assertion", (_err, args) => {
+          if (!args) return;
+          if (args.error) {
+            emitLog(`[${label}] assertion failed: ${args.error.message}`);
+          }
         });
-      }
-    )
-      .on("start", () => {
-        mainWindow.webContents.send("run-log", "[start] running newman...");
-      })
-      .on("console", (err, args) => {
-        if (err) return;
-        const line = args && args.length ? args.join(" ") : "";
-        if (line) {
-          logStream.write(line + "\n");
-          mainWindow.webContents.send("run-log", line);
-        }
-      });
+    });
+  };
+
+  return new Promise(async (resolve) => {
+    const primary = await runOnce("valid", []);
+    if (!primary.ok || !runInvalidAlso) return resolve(primary);
+    if (invalidOverrides.length === 0) {
+      return resolve(primary);
+    }
+    const secondary = await runOnce("invalid", invalidOverrides);
+    return resolve(secondary);
   });
 });

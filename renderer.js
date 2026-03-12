@@ -1,11 +1,13 @@
-const el = (id) => document.getElementById(id);
+ï»¿const el = (id) => document.getElementById(id);
 
 const collectionInput = el("collectionFile");
 const environmentInput = el("environmentFile");
 const ipInput = el("ip");
 const tokenInput = el("token");
 const extraVarsInput = el("extraVars");
+const invalidVarsInput = el("invalidVars");
 const outputDirInput = el("outputDir");
+const runInvalidAlso = el("runInvalidAlso");
 const iterationInput = el("iterationCount");
 const timeoutInput = el("timeoutRequest");
 const delayInput = el("delayRequest");
@@ -95,11 +97,11 @@ function renderHistory() {
 
     const title = document.createElement("div");
     title.className = "title";
-    title.textContent = `${item.id} ¡¤ ${item.ok ? "OK" : "FAIL"}`;
+    title.textContent = `${item.id} Â· ${item.label ? item.label.toUpperCase() + " " : ""}${item.ok ? "OK" : "FAIL"}`;
 
     const meta = document.createElement("div");
     meta.className = "meta";
-    meta.textContent = `${item.startedAt} ¡æ ${item.endedAt}`;
+    meta.textContent = `${item.startedAt} â†’ ${item.endedAt}`;
 
     const badges = document.createElement("div");
     badges.className = "badges";
@@ -212,7 +214,7 @@ async function loadJsonSummary(jsonPath, cachedText) {
       const hasAssertionError = assertions.some((a) => a.error);
       return hasAssertionError || ex.error;
     });
-    previewSummary.textContent = `Executions: ${executions.length} ¡¤ Failed: ${failed.length}`;
+    previewSummary.textContent = `Executions: ${executions.length} Â· Failed: ${failed.length}`;
 
     const times = executions.map((ex) => ex.response?.responseTime || 0);
     const avg = times.length ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : 0;
@@ -309,6 +311,8 @@ runBtn.addEventListener("click", async () => {
     ip: ipInput.value.trim(),
     token: tokenInput.value.trim(),
     extraVarsJson: extraVarsInput.value.trim(),
+    invalidVarsJson: invalidVarsInput.value.trim(),
+    runInvalidAlso: runInvalidAlso.checked,
     outputDir: outputDirInput.value.trim(),
     reporters,
     iterationCount: Number(iterationInput.value || 1),
@@ -328,7 +332,7 @@ runBtn.addEventListener("click", async () => {
 
   const res = await window.api.runNewman(payload);
   if (res.ok) {
-    statusLine.textContent = `Done. JSON: ${res.reportJson} ¡¤ HTML: ${res.reportHtml}`;
+    statusLine.textContent = `Done. JSON: ${res.reportJson} Â· HTML: ${res.reportHtml}`;
     if (res.reportJson) {
       showJsonPreview(res.reportJson, res.reportHtml);
     }
@@ -362,6 +366,8 @@ installUpdateBtn.addEventListener("click", async () => {
 });
 
 refreshHistory();
+
+
 
 
 

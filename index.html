@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-src 'self' file:; img-src 'self' data: file:; connect-src 'self' file:;">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Newman Desktop Runner</title>
     <link rel="stylesheet" href="styles.css" />
@@ -84,6 +84,14 @@
           <label class="wide">
             Extra Vars (JSON)
             <textarea id="extraVars" placeholder='{"key":"value"} or [{"key":"k","value":"v"}]'></textarea>
+          </label>
+          <label class="wide">
+            Invalid Vars (JSON)
+            <textarea id="invalidVars" placeholder='Override vars for invalid run (optional)'></textarea>
+          </label>
+          <label class="toggle wide">
+            <input id="runInvalidAlso" type="checkbox" />
+            Run invalid vars as a second pass
           </label>
           <div class="wide">
             <label>
