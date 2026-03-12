@@ -45,13 +45,6 @@ const summaryFailed = el("summaryFailed");
 const summaryAvg = el("summaryAvg");
 const summaryGroups = el("summaryGroups");
 const failureList = el("failureList");
-const updateStatus = el("updateStatus");
-const checkUpdateBtn = el("checkUpdateBtn");
-const downloadUpdateBtn = el("downloadUpdateBtn");
-const installUpdateBtn = el("installUpdateBtn");
-const updateProgressText = el("updateProgressText");
-const updateProgressFill = el("updateProgressFill");
-
 let collectionCache = null;
 let selection = new Set();
 
@@ -174,14 +167,6 @@ function appendLog(line) {
 }
 
 window.api.onRunLog((msg) => appendLog(msg));
-window.api.onUpdateStatus((msg) => {
-  updateStatus.textContent = msg;
-});
-window.api.onUpdateProgress((pct) => {
-  const safePct = Math.max(0, Math.min(100, Number(pct) || 0));
-  updateProgressText.textContent = safePct + '%';
-  updateProgressFill.style.width = safePct + '%';
-});
 
 async function refreshHistory() {
   const history = await window.api.getHistory();
@@ -492,23 +477,6 @@ historySearch.addEventListener("input", renderHistory);
 filterAll.addEventListener("click", () => setFilter("all"));
 filterOk.addEventListener("click", () => setFilter("ok"));
 filterFail.addEventListener("click", () => setFilter("fail"));
-
-checkUpdateBtn.addEventListener("click", async () => {
-  updateStatus.textContent = "Checking for updates...";
-  const res = await window.api.checkUpdates();
-downloadUpdateBtn.addEventListener("click", async () => {
-  updateStatus.textContent = "Downloading update...";
-  const res = await window.api.downloadUpdate();
-  if (!res.ok) updateStatus.textContent = res.error;
-});
-
-installUpdateBtn.addEventListener("click", async () => {
-  updateStatus.textContent = "Installing update...";
-  const res = await window.api.installUpdate();
-  if (!res.ok) updateStatus.textContent = res.error;
-});
-  if (!res.ok) updateStatus.textContent = res.error;
-});
 
 refreshHistory();
 

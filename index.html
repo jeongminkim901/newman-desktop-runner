@@ -16,18 +16,6 @@
           <div class="subtitle">Run Postman collections locally and generate HTML/JSON reports.</div>
         </div>
       </div>
-      <div class="update-box">
-        <div id="updateStatus" class="update-status">Checking updates...</div>
-        <button id="checkUpdateBtn" type="button">Check Update</button>
-        <button id="downloadUpdateBtn" type="button">Download</button>
-        <button id="installUpdateBtn" type="button">Install</button>
-      </div>
-      <div class="update-progress">
-        <div id="updateProgressText" class="update-status">0%</div>
-        <div class="progress-bar">
-          <div id="updateProgressFill" class="progress-fill" style="width: 0%"></div>
-        </div>
-      </div>
     </header>
 
     <main>
@@ -35,7 +23,7 @@
         <h2>Run Settings</h2>
         <div class="grid">
           <label>
-            <span class="req">*</span> Collection
+            <div class="label-line"><span class="req">*</span> Collection</div>
             <input id="collectionFile" type="file" accept=".json" />
           </label>
           <label>
@@ -114,7 +102,7 @@
           </label>
           <div class="wide">
             <label>
-              <span class="req">*</span> Output Directory
+              <div class="label-line"><span class="req">*</span> Output Directory</div>
               <div class="row">
                 <input id="outputDir" type="text" placeholder="C:\\Users\\...\\Documents\\newman-reports" />
                 <button id="pickDirBtn" type="button">Browse</button>
