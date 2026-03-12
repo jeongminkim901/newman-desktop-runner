@@ -8,12 +8,17 @@
   "scripts": {
     "start": "electron .",
     "lint": "echo \"(no lint yet)\"",
+    "test:unit": "jest --runInBand",
+    "test:e2e": "node tests/e2e/run.js",
+    "test": "npm run test:unit && npm run test:e2e",
     "build:win": "set CSC_IDENTITY_AUTO_DISCOVERY=false&& electron-builder --win --x64",
     "build:dir": "electron-builder --win --x64 --dir"
   },
   "devDependencies": {
+    "@playwright/test": "^1.49.0",
     "electron": "^30.0.0",
-    "electron-builder": "^24.13.3"
+    "electron-builder": "^24.13.3",
+    "jest": "^29.7.0"
   },
   "dependencies": {
     "electron-updater": "^6.3.0",

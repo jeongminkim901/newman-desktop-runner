@@ -2,6 +2,11 @@ const { app, BrowserWindow, dialog, ipcMain } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const newman = require("newman");
+const {
+  parseVarsJson,
+  normalizeCollection,
+  filterItemsByName
+} = require("./lib/newmanHelpers");
 
 let mainWindow;
 
@@ -105,63 +110,7 @@ ipcMain.handle("run-newman", async (_event, payload) => {
     }
   }
 
-  const parseVarsJson = (json) => {
-    if (!json) return [];
-    const vars = [];
-    const parsed = JSON.parse(json);
-    if (Array.isArray(parsed)) {
-      parsed.forEach((item) => {
-        if (!item) return;
-        const key = item.key || item["key"];
-        const value = item.value || item["value"];
-        if (key) vars.push({ key: String(key), value: String(value), enabled: true });
-      });
-    } else if (parsed && typeof parsed === "object") {
-      Object.entries(parsed).forEach(([key, value]) => {
-        vars.push({ key: String(key), value: String(value), enabled: true });
-      });
-    }
-    return vars;
-  };
-
   const invalidOverrides = invalidVarsJson ? parseVarsJson(invalidVarsJson) : [];
-
-  const normalizeCollection = (obj) => {
-    if (obj && obj.info && Array.isArray(obj.item)) return obj;
-    return null;
-  };
-
-  const filterItems = (items, term) => {
-    const out = [];
-    items.forEach((it) => {
-      if (Array.isArray(it.item)) {
-        const children = filterItems(it.item, term);
-        if (children.length) {
-          out.push({ ...it, item: children });
-        }
-      } else {
-        const name = (it.name || "").toLowerCase();
-        if (name.includes(term)) out.push(it);
-      }
-    });
-    return out;
-  };
-
-  const filterItemsByName = (items, nameSet) => {
-    const out = [];
-    items.forEach((it) => {
-      if (Array.isArray(it.item)) {
-        const children = filterItemsByName(it.item, nameSet);
-        if (children.length) {
-          out.push({ ...it, item: children });
-        }
-      } else {
-        const name = it.name || "";
-        if (nameSet.has(name)) out.push(it);
-      }
-    });
-    return out;
-  };
 
   const resolveCollection = () => {
     if (useSelectedRequests && Array.isArray(selectedRequestNames)) {
