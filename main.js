@@ -277,7 +277,11 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     useSelectedRequests,
     outputDir,
     variantsPerRequest,
-    exploreDelayMs
+    exploreDelayMs,
+    exploreRuleMode,
+    exploreCustomJson,
+    failedOnly,
+    failedRequestNames
   } = payload;
 
   if (!collectionPath) return { ok: false, error: "Collection file is required." };
@@ -297,7 +301,11 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
   }
 
   let items = collectionObj.item || [];
-  if (useSelectedRequests && Array.isArray(selectedRequestNames)) {
+  if (failedOnly && Array.isArray(failedRequestNames) && failedRequestNames.length) {
+    const nameSet = new Set(failedRequestNames);
+    items = filterItemsByName(items, nameSet);
+    if (!items.length) return { ok: false, error: "No failed requests found in collection." };
+  } else if (useSelectedRequests && Array.isArray(selectedRequestNames)) {
     const nameSet = new Set(selectedRequestNames);
     if (!nameSet.size) return { ok: false, error: "No requests selected." };
     items = filterItemsByName(items, nameSet);
@@ -325,6 +333,16 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
 
   const maxVariants = Math.max(1, Math.min(5, Number(variantsPerRequest || 3)));
   const delayMs = Number.isFinite(Number(exploreDelayMs)) ? Number(exploreDelayMs) : 300;
+  const ruleMode = [ "basic", "extended", "custom" ].includes(exploreRuleMode) ? exploreRuleMode : "basic";
+  let customVariants = [];
+  if (ruleMode === "custom" && exploreCustomJson) {
+    try {
+      const parsed = JSON.parse(exploreCustomJson);
+      if (Array.isArray(parsed)) customVariants = parsed;
+    } catch (e) {
+      return { ok: false, error: `Custom variants JSON parse error: ${e.message}` };
+    }
+  }
 
   const results = [];
   let failed = 0;
@@ -339,13 +357,19 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     const urlRaw = getRequestUrl(item?.request, varsMap, ip);
     const queryParams = getQueryParams(item?.request, varsMap);
     const bodyInfo = getJsonBody(item?.request, varsMap);
-    const variants = buildVariants({ queryParams, bodyJson: bodyInfo }, maxVariants);
+    const variants = buildVariants(
+      { queryParams, bodyJson: bodyInfo, mode: ruleMode, customVariants },
+      maxVariants
+    );
 
     const baseUrl = buildUrlWithQuery(urlRaw, queryParams);
     const baseBody = bodyInfo?.raw || "";
 
     const runOnce = async (variantLabel, url, bodyJson) => {
       const requestBody = bodyJson ? JSON.stringify(bodyJson) : bodyInfo?.json ? JSON.stringify(bodyInfo.json) : baseBody;
+      const headersFinal = requestBody
+        ? { "Content-Type": "application/json", ...headersWithAuth }
+        : headersWithAuth;
       const started = Date.now();
       let status = 0;
       let responseText = "";
@@ -353,7 +377,7 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
       try {
         const res = await ctx.fetch(url, {
           method,
-          headers: headersWithAuth,
+          headers: headersFinal,
           data: requestBody || undefined
         });
         status = res.status();
@@ -409,11 +433,17 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     type: "explore",
     startedAt,
     endedAt,
-    summary,
+    summary: { ...summary, ruleMode, maxVariants, delayMs },
     results
   };
 
   fs.writeFileSync(reportJson, JSON.stringify(report, null, 2), "utf-8");
+  const reportHtml = path.join(outputDir, `${runId}.html`);
+  const rows = results
+    .map((r) => `<tr><td>${r.name}</td><td>${r.variant}</td><td>${r.method}</td><td>${r.status || ""}</td><td>${r.durationMs}</td><td>${r.error || ""}</td></tr>`)
+    .join("");
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Exploratory Report</title><style>body{font-family:Segoe UI,Arial,sans-serif;padding:16px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:6px;font-size:12px}th{background:#f3f4f6;text-align:left}</style></head><body><h2>Exploratory Report</h2><p>Total: ${summary.total} · Failed: ${summary.failed}</p><table><thead><tr><th>Name</th><th>Variant</th><th>Method</th><th>Status</th><th>Ms</th><th>Error</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
+  fs.writeFileSync(reportHtml, html, "utf-8");
 
   const history = readHistory();
   history.unshift({
@@ -422,7 +452,7 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     environmentPath,
     outputDir,
     reportJson,
-    reportHtml: null,
+    reportHtml,
     logPath,
     startedAt,
     endedAt,

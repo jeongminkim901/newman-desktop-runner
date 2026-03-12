@@ -28,8 +28,24 @@ describe("exploreHelpers", () => {
   });
 
   test("buildVariants uses query params first", () => {
-    const variants = buildVariants({ queryParams: [ { key: "a", value: "1" } ] }, 3);
+    const variants = buildVariants({ queryParams: [ { key: "a", value: "1" } ], mode: "basic" }, 3);
     expect(variants[0].label).toMatch("query:remove");
+  });
+
+  test("buildVariants supports extended mode", () => {
+    const variants = buildVariants(
+      { bodyJson: { json: { name: "x" } }, mode: "extended" },
+      10
+    );
+    expect(variants.some((v) => v.label.includes("sqli"))).toBe(true);
+  });
+
+  test("buildVariants supports custom mode", () => {
+    const variants = buildVariants(
+      { mode: "custom", customVariants: [ { label: "c1", body: { a: 1 } } ] },
+      3
+    );
+    expect(variants[0].label).toBe("c1");
   });
 
   test("buildUrlWithQuery rewrites query", () => {

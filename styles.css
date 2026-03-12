@@ -150,6 +150,14 @@ textarea {
   border-radius: 12px;
 }
 
+.explore-box select {
+  background: #0f141b;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
 .tree {
   border: 1px solid var(--border);
   border-radius: 10px;

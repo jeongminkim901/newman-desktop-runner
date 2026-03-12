@@ -21,6 +21,9 @@ const bailInput = el("bail");
 const exploreEnabled = el("exploreEnabled");
 const variantsPerRequest = el("variantsPerRequest");
 const exploreDelayMs = el("exploreDelayMs");
+const exploreRuleMode = el("exploreRuleMode");
+const exploreCustomJson = el("exploreCustomJson");
+const exploreFailedOnly = el("exploreFailedOnly");
 const repCli = el("repCli");
 const repHtml = el("repHtml");
 const repJson = el("repJson");
@@ -161,6 +164,7 @@ selectNoneBtn.addEventListener("click", () => {
 });
 let historyCache = [];
 let historyFilter = "all";
+let lastPreviewJsonPath = "";
 
 function appendLog(line) {
   const div = document.createElement("div");
@@ -312,6 +316,7 @@ function showHtmlPreview(htmlPath, jsonPath) {
 
 async function showJsonPreview(jsonPath, htmlPath) {
   try {
+    lastPreviewJsonPath = jsonPath;
     const res = await fetch(`file:///${jsonPath.replace(/\\/g, "/")}`);
     const text = await res.text();
     jsonPreview.textContent = text;
@@ -325,6 +330,25 @@ async function showJsonPreview(jsonPath, htmlPath) {
     await loadHtmlPreview(htmlPath);
   }
   setPreviewMode("json");
+}
+
+function extractFailedNamesFromJson(text) {
+  try {
+    const data = JSON.parse(text);
+    if (data && data.type === "explore") {
+      const results = Array.isArray(data.results) ? data.results : [];
+      return results.filter((r) => r.error || (r.status >= 400)).map((r) => r.name).filter(Boolean);
+    }
+    const executions = data?.run?.executions || [];
+    const failed = executions.filter((ex) => {
+      const assertions = ex.assertions || [];
+      const hasAssertionError = assertions.some((a) => a.error);
+      return hasAssertionError || ex.error;
+    });
+    return failed.map((ex) => ex?.item?.name).filter(Boolean);
+  } catch {
+    return [];
+  }
 }
 async function loadJsonSummary(jsonPath, cachedText) {
   try {
@@ -493,6 +517,26 @@ runBtn.addEventListener("click", async () => {
   if (repHtml.checked) reporters.push("html");
   if (repJson.checked) reporters.push("json");
 
+  let failedRequestNames = [];
+  if (exploreEnabled?.checked && exploreFailedOnly?.checked) {
+    if (!lastPreviewJsonPath) {
+      statusLine.textContent = "Preview a JSON report first to re-explore failed requests.";
+      return;
+    }
+    try {
+      const res = await fetch(`file:///${lastPreviewJsonPath.replace(/\\/g, "/")}`);
+      const text = await res.text();
+      failedRequestNames = extractFailedNamesFromJson(text);
+      if (!failedRequestNames.length) {
+        statusLine.textContent = "No failed requests found in last JSON preview.";
+        return;
+      }
+    } catch (e) {
+      statusLine.textContent = `Failed to read JSON preview: ${e.message}`;
+      return;
+    }
+  }
+
   const payload = {
     collectionPath: collectionInput.files[0]?.path,
     environmentPath: environmentInput.files[0]?.path,
@@ -506,6 +550,10 @@ runBtn.addEventListener("click", async () => {
     outputDir: outputDirInput.value.trim(),
     variantsPerRequest: Number(variantsPerRequest?.value || 3),
     exploreDelayMs: Number(exploreDelayMs?.value || 300),
+    exploreRuleMode: exploreRuleMode?.value || "basic",
+    exploreCustomJson: exploreCustomJson?.value?.trim(),
+    failedOnly: !!exploreFailedOnly?.checked,
+    failedRequestNames,
     reporters,
     iterationCount: Number(iterationInput.value || 1),
     timeoutRequest: Number(timeoutInput.value || 300000),

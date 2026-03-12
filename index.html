@@ -96,6 +96,24 @@
                 <input id="exploreDelayMs" type="number" min="0" value="300" />
               </label>
             </div>
+            <div class="row">
+              <label>
+                Rule mode
+                <select id="exploreRuleMode">
+                  <option value="basic" selected>Basic</option>
+                  <option value="extended">Extended</option>
+                  <option value="custom">Custom</option>
+                </select>
+              </label>
+              <label class="toggle">
+                <input id="exploreFailedOnly" type="checkbox" />
+                Re-explore failed only (from last JSON preview)
+              </label>
+            </div>
+            <label class="wide">
+              Custom variants (JSON)
+              <textarea id="exploreCustomJson" placeholder='[{"label":"custom-1","body":{"field":"bad"}},{"label":"q1","query":[{"key":"id","value":""}]}]'></textarea>
+            </label>
           </div>
           <div class="wide selector">
             <div class="row">
