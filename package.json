@@ -8,22 +8,38 @@
   "scripts": {
     "start": "electron .",
     "lint": "echo \"(no lint yet)\"",
-    "build:win": "electron-builder --win --x64 --dir"
+    "build:win": "set CSC_IDENTITY_AUTO_DISCOVERY=false&& electron-builder --win --x64",
+    "build:dir": "electron-builder --win --x64 --dir"
   },
   "devDependencies": {
     "electron": "^30.0.0",
     "electron-builder": "^24.13.3"
   },
   "dependencies": {
+    "electron-updater": "^6.3.0",
     "newman": "^6.2.1"
   },
   "build": {
     "appId": "com.jeongmin.newmanrunner",
     "productName": "Newman Desktop Runner",
     "icon": "build/icon.png",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "jeongminkim901",
+        "repo": "newman-desktop-runner"
+      }
+    ],
     "win": {
-      "sign": false,
-      "signAndEditExecutable": false
+      "target": [
+        "nsis"
+      ],
+      "signAndEditExecutable": false,
+      "signingHashAlgorithms": []
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false
     },
     "files": [
       "**/*"

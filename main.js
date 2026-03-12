@@ -1,4 +1,5 @@
 const { app, BrowserWindow, dialog, ipcMain } = require("electron");
+const { autoUpdater } = require("electron-updater");
 const path = require("path");
 const fs = require("fs");
 const newman = require("newman");
@@ -20,6 +21,36 @@ function createWindow() {
 
 app.whenReady().then(() => {
   createWindow();
+
+  autoUpdater.autoDownload = false;
+  autoUpdater.on("checking-for-update", () => {
+    mainWindow.webContents.send("update-status", "Checking for updates...");
+  });
+  autoUpdater.on("update-available", (info) => {
+    mainWindow.webContents.send("update-status", `Update available: ${info.version}`);
+  });
+  autoUpdater.on("update-not-available", () => {
+    mainWindow.webContents.send("update-status", "No updates available.");
+  });
+  autoUpdater.on("error", (err) => {
+    mainWindow.webContents.send("update-status", `Update error: ${err.message}`);
+  });
+  autoUpdater.on("download-progress", (progress) => {
+    mainWindow.webContents.send(
+      "update-status",
+      `Downloading update... ${Math.round(progress.percent)}%`
+    );
+  });
+  autoUpdater.on("update-downloaded", () => {
+    mainWindow.webContents.send("update-status", "Update downloaded. Restart to install.");
+  });
+
+  if (app.isPackaged) {
+    autoUpdater.checkForUpdates();
+  } else {
+    mainWindow.webContents.send("update-status", "Updates disabled in dev mode.");
+  }
+
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
@@ -53,6 +84,16 @@ function writeHistory(entries) {
 }
 
 ipcMain.handle("get-history", () => readHistory());
+
+ipcMain.handle("check-updates", async () => {
+  if (!app.isPackaged) return { ok: false, error: "Updates disabled in dev mode." };
+  try {
+    await autoUpdater.checkForUpdates();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
 
 ipcMain.handle("run-newman", async (_event, payload) => {
   const {

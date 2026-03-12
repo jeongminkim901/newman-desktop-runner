@@ -37,6 +37,8 @@ const summaryFailed = el("summaryFailed");
 const summaryAvg = el("summaryAvg");
 const summaryGroups = el("summaryGroups");
 const failureList = el("failureList");
+const updateStatus = el("updateStatus");
+const checkUpdateBtn = el("checkUpdateBtn");
 
 let historyCache = [];
 let historyFilter = "all";
@@ -49,6 +51,9 @@ function appendLog(line) {
 }
 
 window.api.onRunLog((msg) => appendLog(msg));
+window.api.onUpdateStatus((msg) => {
+  updateStatus.textContent = msg;
+});
 
 async function refreshHistory() {
   const history = await window.api.getHistory();
@@ -81,11 +86,11 @@ function renderHistory() {
 
     const title = document.createElement("div");
     title.className = "title";
-    title.textContent = `${item.id} Â· ${item.ok ? "OK" : "FAIL"}`;
+    title.textContent = `${item.id} ¡¤ ${item.ok ? "OK" : "FAIL"}`;
 
     const meta = document.createElement("div");
     meta.className = "meta";
-    meta.textContent = `${item.startedAt} â†’ ${item.endedAt}`;
+    meta.textContent = `${item.startedAt} ¡æ${item.endedAt}`;
 
     const badges = document.createElement("div");
     badges.className = "badges";
@@ -198,7 +203,7 @@ async function loadJsonSummary(jsonPath, cachedText) {
       const hasAssertionError = assertions.some((a) => a.error);
       return hasAssertionError || ex.error;
     });
-    previewSummary.textContent = `Executions: ${executions.length} Â· Failed: ${failed.length}`;
+    previewSummary.textContent = `Executions: ${executions.length} ¡¤ Failed: ${failed.length}`;
 
     const times = executions.map((ex) => ex.response?.responseTime || 0);
     const avg = times.length ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : 0;
@@ -314,7 +319,7 @@ runBtn.addEventListener("click", async () => {
 
   const res = await window.api.runNewman(payload);
   if (res.ok) {
-    statusLine.textContent = `Done. JSON: ${res.reportJson} Â· HTML: ${res.reportHtml}`;
+    statusLine.textContent = `Done. JSON: ${res.reportJson} ¡¤ HTML: ${res.reportHtml}`;
     if (res.reportJson) {
       showJsonPreview(res.reportJson, res.reportHtml);
     }
@@ -330,4 +335,11 @@ filterAll.addEventListener("click", () => setFilter("all"));
 filterOk.addEventListener("click", () => setFilter("ok"));
 filterFail.addEventListener("click", () => setFilter("fail"));
 
+checkUpdateBtn.addEventListener("click", async () => {
+  updateStatus.textContent = "Checking for updates...";
+  const res = await window.api.checkUpdates();
+  if (!res.ok) updateStatus.textContent = res.error;
+});
+
 refreshHistory();
+

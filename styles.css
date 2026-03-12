@@ -21,6 +21,10 @@ body {
 
 header {
   padding: 24px 28px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
 }
 
 .brand {
@@ -35,6 +39,17 @@ header {
   border-radius: 50%;
   background: radial-gradient(circle at 30% 30%, #6ff0c0, #32d095);
   box-shadow: 0 0 18px rgba(50, 208, 149, 0.4);
+}
+
+.update-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.update-status {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 h1 {
