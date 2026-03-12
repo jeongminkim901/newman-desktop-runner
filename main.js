@@ -95,6 +95,26 @@ ipcMain.handle("check-updates", async () => {
   }
 });
 
+ipcMain.handle("download-update", async () => {
+  if (!app.isPackaged) return { ok: false, error: "Updates disabled in dev mode." };
+  try {
+    await autoUpdater.downloadUpdate();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle("install-update", async () => {
+  if (!app.isPackaged) return { ok: false, error: "Updates disabled in dev mode." };
+  try {
+    autoUpdater.quitAndInstall();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
 ipcMain.handle("run-newman", async (_event, payload) => {
   const {
     collectionPath,

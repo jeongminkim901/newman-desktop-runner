@@ -6,5 +6,7 @@ contextBridge.exposeInMainWorld("api", {
   getHistory: () => ipcRenderer.invoke("get-history"),
   onRunLog: (cb) => ipcRenderer.on("run-log", (_event, msg) => cb(msg)),
   checkUpdates: () => ipcRenderer.invoke("check-updates"),
+  downloadUpdate: () => ipcRenderer.invoke("download-update"),
+  installUpdate: () => ipcRenderer.invoke("install-update"),
   onUpdateStatus: (cb) => ipcRenderer.on("update-status", (_event, msg) => cb(msg))
 });

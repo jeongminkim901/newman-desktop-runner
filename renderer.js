@@ -39,6 +39,8 @@ const summaryGroups = el("summaryGroups");
 const failureList = el("failureList");
 const updateStatus = el("updateStatus");
 const checkUpdateBtn = el("checkUpdateBtn");
+const downloadUpdateBtn = el("downloadUpdateBtn");
+const installUpdateBtn = el("installUpdateBtn");
 
 let historyCache = [];
 let historyFilter = "all";
@@ -90,7 +92,7 @@ function renderHistory() {
 
     const meta = document.createElement("div");
     meta.className = "meta";
-    meta.textContent = `${item.startedAt} ¡æ${item.endedAt}`;
+    meta.textContent = `${item.startedAt} ¡æ ${item.endedAt}`;
 
     const badges = document.createElement("div");
     badges.className = "badges";
@@ -338,8 +340,23 @@ filterFail.addEventListener("click", () => setFilter("fail"));
 checkUpdateBtn.addEventListener("click", async () => {
   updateStatus.textContent = "Checking for updates...";
   const res = await window.api.checkUpdates();
+downloadUpdateBtn.addEventListener("click", async () => {
+  updateStatus.textContent = "Downloading update...";
+  const res = await window.api.downloadUpdate();
+  if (!res.ok) updateStatus.textContent = res.error;
+});
+
+installUpdateBtn.addEventListener("click", async () => {
+  updateStatus.textContent = "Installing update...";
+  const res = await window.api.installUpdate();
+  if (!res.ok) updateStatus.textContent = res.error;
+});
   if (!res.ok) updateStatus.textContent = res.error;
 });
 
 refreshHistory();
+
+
+
+
 
