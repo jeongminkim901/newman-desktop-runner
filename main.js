@@ -125,10 +125,8 @@ ipcMain.handle("run-newman", async (_event, payload) => {
     extraVarsJson,
     invalidVarsJson,
     runInvalidAlso,
-    collectionJson,
-    useEditedCollection,
-    requestFilter,
-    useRequestFilter,
+    selectedRequestNames,
+    useSelectedRequests,
     outputDir,
     reporters,
     iterationCount,
@@ -210,20 +208,31 @@ ipcMain.handle("run-newman", async (_event, payload) => {
     return out;
   };
 
-  const resolveCollection = () => {
-    if (useEditedCollection && collectionJson) {
-      const obj = normalizeCollection(JSON.parse(collectionJson));
-      if (!obj) throw new Error("Edited collection JSON is invalid.");
-      return obj;
-    }
+  const filterItemsByName = (items, nameSet) => {
+    const out = [];
+    items.forEach((it) => {
+      if (Array.isArray(it.item)) {
+        const children = filterItemsByName(it.item, nameSet);
+        if (children.length) {
+          out.push({ ...it, item: children });
+        }
+      } else {
+        const name = it.name || "";
+        if (nameSet.has(name)) out.push(it);
+      }
+    });
+    return out;
+  };
 
-    if (useRequestFilter && requestFilter) {
+  const resolveCollection = () => {
+    if (useSelectedRequests && Array.isArray(selectedRequestNames)) {
       const raw = fs.readFileSync(collectionPath, "utf-8");
       const obj = normalizeCollection(JSON.parse(raw));
       if (!obj) throw new Error("Collection file JSON is invalid.");
-      const term = requestFilter.toLowerCase();
-      const filtered = filterItems(obj.item || [], term);
-      if (!filtered.length) throw new Error("No requests matched the filter.");
+      const nameSet = new Set(selectedRequestNames);
+      if (nameSet.size === 0) throw new Error("No requests selected.");
+      const filtered = filterItemsByName(obj.item || [], nameSet);
+      if (!filtered.length) throw new Error("No selected requests found.");
       return { ...obj, item: filtered };
     }
 

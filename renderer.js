@@ -6,13 +6,12 @@ const ipInput = el("ip");
 const tokenInput = el("token");
 const extraVarsInput = el("extraVars");
 const invalidVarsInput = el("invalidVars");
-const collectionEditor = el("collectionEditor");
-const loadCollectionBtn = el("loadCollectionBtn");
-const useEditedCollection = el("useEditedCollection");
-const useRequestFilter = el("useRequestFilter");
-const requestFilter = el("requestFilter");
+const collectionSearch = el("collectionSearch");
+const collectionTree = el("collectionTree");
+const selectAllBtn = el("selectAllBtn");
+const selectNoneBtn = el("selectNoneBtn");
+const useSelectedRequests = el("useSelectedRequests");
 const showReqRes = el("showReqRes");
-const invalidVarsInput = el("invalidVars");
 const outputDirInput = el("outputDir");
 const runInvalidAlso = el("runInvalidAlso");
 const iterationInput = el("iterationCount");
@@ -53,6 +52,117 @@ const installUpdateBtn = el("installUpdateBtn");
 const updateProgressText = el("updateProgressText");
 const updateProgressFill = el("updateProgressFill");
 
+let collectionCache = null;
+let selection = new Set();
+
+function selectedRequestNames() {
+  return Array.from(selection);
+}
+
+function buildTree(items, filter) {
+  const ul = document.createElement("ul");
+  items.forEach((item) => {
+    const li = document.createElement("li");
+    if (Array.isArray(item.item)) {
+      const row = document.createElement("div");
+      row.className = "row folder";
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = areAllChildrenSelected(item.item);
+      cb.addEventListener("change", () => {
+        setChildrenSelected(item.item, cb.checked);
+        renderCollectionTree();
+      });
+      const label = document.createElement("span");
+      label.textContent = item.name || "Folder";
+      row.appendChild(cb);
+      row.appendChild(label);
+      li.appendChild(row);
+      li.appendChild(buildTree(item.item, filter));
+    } else {
+      const row = document.createElement("div");
+      row.className = "row";
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = selection.has(item.name || "");
+      cb.addEventListener("change", () => {
+        const name = item.name || "";
+        if (cb.checked) selection.add(name);
+        else selection.delete(name);
+      });
+      const label = document.createElement("span");
+      label.textContent = item.name || "Request";
+      row.appendChild(cb);
+      row.appendChild(label);
+      li.appendChild(row);
+    }
+    if (filter) {
+      const text = (item.name || "").toLowerCase();
+      if (!text.includes(filter)) return;
+    }
+    ul.appendChild(li);
+  });
+  return ul;
+}
+
+function areAllChildrenSelected(items) {
+  return flattenRequests(items).every((name) => selection.has(name));
+}
+
+function setChildrenSelected(items, checked) {
+  flattenRequests(items).forEach((name) => {
+    if (checked) selection.add(name);
+    else selection.delete(name);
+  });
+}
+
+function flattenRequests(items) {
+  const names = [];
+  items.forEach((it) => {
+    if (Array.isArray(it.item)) {
+      names.push(...flattenRequests(it.item));
+    } else if (it.name) {
+      names.push(it.name);
+    }
+  });
+  return names;
+}
+
+function renderCollectionTree() {
+  if (!collectionCache) return;
+  const filter = collectionSearch.value.trim().toLowerCase();
+  collectionTree.innerHTML = "";
+  collectionTree.appendChild(buildTree(collectionCache.item || [], filter));
+}
+
+collectionInput.addEventListener("change", () => {
+  const file = collectionInput.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      collectionCache = JSON.parse(String(reader.result || ""));
+      selection = new Set(flattenRequests(collectionCache.item || []));
+      renderCollectionTree();
+    } catch {
+      collectionTree.innerHTML = "Failed to parse collection JSON.";
+    }
+  };
+  reader.readAsText(file);
+});
+
+collectionSearch.addEventListener("input", renderCollectionTree);
+
+selectAllBtn.addEventListener("click", () => {
+  if (!collectionCache) return;
+  selection = new Set(flattenRequests(collectionCache.item || []));
+  renderCollectionTree();
+});
+
+selectNoneBtn.addEventListener("click", () => {
+  selection = new Set();
+  renderCollectionTree();
+});
 let historyCache = [];
 let historyFilter = "all";
 
@@ -159,16 +269,6 @@ function renderHistory() {
 pickDirBtn.addEventListener("click", async () => {
   const dir = await window.api.pickOutputDir();
   if (dir) outputDirInput.value = dir;
-});
-
-loadCollectionBtn.addEventListener("click", () => {
-  const file = collectionInput.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    collectionEditor.value = String(reader.result || "");
-  };
-  reader.readAsText(file);
 });
 
 function setPreviewMode(mode) {
@@ -352,11 +452,11 @@ runBtn.addEventListener("click", async () => {
     token: tokenInput.value.trim(),
     extraVarsJson: extraVarsInput.value.trim(),
     invalidVarsJson: invalidVarsInput.value.trim(),
-    collectionJson: collectionEditor.value.trim(),
+    selectedRequestNames: selectedRequestNames(),
     runInvalidAlso: runInvalidAlso.checked,
-    useEditedCollection: useEditedCollection.checked,
-    requestFilter: requestFilter.value.trim(),
-    useRequestFilter: useRequestFilter.checked,
+    useSelectedRequests: useSelectedRequests.checked,
+    
+    
     invalidVarsJson: invalidVarsInput.value.trim(),
     outputDir: outputDirInput.value.trim(),
     reporters,
@@ -411,6 +511,9 @@ installUpdateBtn.addEventListener("click", async () => {
 });
 
 refreshHistory();
+
+
+
 
 
 
