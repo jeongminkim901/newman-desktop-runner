@@ -25,9 +25,8 @@
     "icon": "build/icon.png",
     "publish": [
       {
-        "provider": "github",
-        "owner": "jeongminkim901",
-        "repo": "newman-desktop-runner"
+        "provider": "generic",
+        "url": "https://github.com/jeongminkim901/newman-desktop-runner/releases/latest/download/"
       }
     ],
     "win": {

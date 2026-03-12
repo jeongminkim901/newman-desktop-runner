@@ -40,6 +40,7 @@ History 라벨:
 - **Check Update**: 업데이트 확인
 - **Download**: 다운로드
 - **Install**: 재시작 후 설치
+- 업데이트 파일은 GitHub Releases의 `latest.yml`을 사용합니다.
 
 ## 6. 문제 해결
 - HTML이 안 보임: HTML reporter 체크 확인
