@@ -115,6 +115,12 @@ label {
   font-size: 13px;
 }
 
+.req {
+  color: var(--danger);
+  margin-left: 4px;
+  font-weight: 700;
+}
+
 .toggle {
   flex-direction: row;
   align-items: center;
