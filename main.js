@@ -40,6 +40,7 @@ app.whenReady().then(() => {
       "update-status",
       `Downloading update... ${Math.round(progress.percent)}%`
     );
+    mainWindow.webContents.send("update-progress", Math.round(progress.percent));
   });
   autoUpdater.on("update-downloaded", () => {
     mainWindow.webContents.send("update-status", "Update downloaded. Restart to install.");

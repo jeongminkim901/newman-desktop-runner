@@ -41,6 +41,8 @@ const updateStatus = el("updateStatus");
 const checkUpdateBtn = el("checkUpdateBtn");
 const downloadUpdateBtn = el("downloadUpdateBtn");
 const installUpdateBtn = el("installUpdateBtn");
+const updateProgressText = el("updateProgressText");
+const updateProgressFill = el("updateProgressFill");
 
 let historyCache = [];
 let historyFilter = "all";
@@ -55,6 +57,11 @@ function appendLog(line) {
 window.api.onRunLog((msg) => appendLog(msg));
 window.api.onUpdateStatus((msg) => {
   updateStatus.textContent = msg;
+});
+window.api.onUpdateProgress((pct) => {
+  const safePct = Math.max(0, Math.min(100, Number(pct) || 0));
+  updateProgressText.textContent = safePct + '%';
+  updateProgressFill.style.width = safePct + '%';
 });
 
 async function refreshHistory() {
@@ -355,6 +362,10 @@ installUpdateBtn.addEventListener("click", async () => {
 });
 
 refreshHistory();
+
+
+
+
 
 
 

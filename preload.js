@@ -8,5 +8,6 @@ contextBridge.exposeInMainWorld("api", {
   checkUpdates: () => ipcRenderer.invoke("check-updates"),
   downloadUpdate: () => ipcRenderer.invoke("download-update"),
   installUpdate: () => ipcRenderer.invoke("install-update"),
-  onUpdateStatus: (cb) => ipcRenderer.on("update-status", (_event, msg) => cb(msg))
+  onUpdateStatus: (cb) => ipcRenderer.on("update-status", (_event, msg) => cb(msg)),
+  onUpdateProgress: (cb) => ipcRenderer.on("update-progress", (_event, pct) => cb(pct))
 });
