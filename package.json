@@ -8,7 +8,7 @@
   "scripts": {
     "start": "electron .",
     "lint": "echo \"(no lint yet)\"",
-    "build:win": "electron-builder --win --x64"
+    "build:win": "electron-builder --win --x64 --dir"
   },
   "devDependencies": {
     "electron": "^30.0.0",
@@ -21,6 +21,10 @@
     "appId": "com.jeongmin.newmanrunner",
     "productName": "Newman Desktop Runner",
     "icon": "build/icon.png",
+    "win": {
+      "sign": false,
+      "signAndEditExecutable": false
+    },
     "files": [
       "**/*"
     ],
