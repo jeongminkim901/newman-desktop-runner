@@ -161,6 +161,16 @@ pickDirBtn.addEventListener("click", async () => {
   if (dir) outputDirInput.value = dir;
 });
 
+loadCollectionBtn.addEventListener("click", () => {
+  const file = collectionInput.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    collectionEditor.value = String(reader.result || "");
+  };
+  reader.readAsText(file);
+});
+
 function setPreviewMode(mode) {
   const isHtml = mode === "html";
   const isJson = mode === "json";
