@@ -18,6 +18,9 @@ const iterationInput = el("iterationCount");
 const timeoutInput = el("timeoutRequest");
 const delayInput = el("delayRequest");
 const bailInput = el("bail");
+const exploreEnabled = el("exploreEnabled");
+const variantsPerRequest = el("variantsPerRequest");
+const exploreDelayMs = el("exploreDelayMs");
 const repCli = el("repCli");
 const repHtml = el("repHtml");
 const repJson = el("repJson");
@@ -199,7 +202,13 @@ function renderHistory() {
 
     const title = document.createElement("div");
     title.className = "title";
-    title.textContent = `${item.id} · ${item.label ? item.label.toUpperCase() + " " : ""}${item.ok ? "OK" : "FAIL"}`;
+    const badge = document.createElement("span");
+    badge.className = "badge";
+    badge.textContent = item.label ? item.label.toUpperCase() : "RUN";
+    title.appendChild(badge);
+    const statusText = document.createElement("span");
+    statusText.textContent = `${item.id} · ${item.ok ? "OK" : "FAIL"}`;
+    title.appendChild(statusText);
 
     const meta = document.createElement("div");
     meta.className = "meta";
@@ -216,13 +225,17 @@ function renderHistory() {
 
     const links = document.createElement("div");
     links.className = "links";
-    links.innerHTML = `
-      <button data-path="${item.reportHtml}">Open HTML</button>
-      <button data-path="${item.reportJson}">Open JSON</button>
-      <button data-path="${item.logPath}">Open Log</button>
-      <button data-preview-html="${item.reportHtml}">Preview HTML</button>
-      <button data-preview-json="${item.reportJson}">Preview JSON</button>
-    `;
+    if (item.reportHtml) {
+      links.innerHTML += `<button data-path="${item.reportHtml}">Open HTML</button>`;
+      links.innerHTML += `<button data-preview-html="${item.reportHtml}">Preview HTML</button>`;
+    }
+    if (item.reportJson) {
+      links.innerHTML += `<button data-path="${item.reportJson}">Open JSON</button>`;
+      links.innerHTML += `<button data-preview-json="${item.reportJson}">Preview JSON</button>`;
+    }
+    if (item.logPath) {
+      links.innerHTML += `<button data-path="${item.logPath}">Open Log</button>`;
+    }
 
     links.querySelectorAll("button").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -321,6 +334,28 @@ async function loadJsonSummary(jsonPath, cachedText) {
       resolved = await res.text();
     }
     const data = JSON.parse(resolved);
+    if (data && data.type === "explore") {
+      const results = Array.isArray(data.results) ? data.results : [];
+      const failed = results.filter((r) => r.error || (r.status >= 400));
+      const times = results.map((r) => r.durationMs || 0);
+      const avg = times.length ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : 0;
+      const groups = { "2": 0, "4": 0, "5": 0 };
+      results.forEach((r) => {
+        const code = r.status || 0;
+        if (code >= 200 && code < 300) groups["2"] += 1;
+        else if (code >= 400 && code < 500) groups["4"] += 1;
+        else if (code >= 500 && code < 600) groups["5"] += 1;
+      });
+
+      previewSummary.textContent = `Exploratory: ${results.length} · Failed: ${failed.length}`;
+      summaryTotal.textContent = String(results.length);
+      summaryFailed.textContent = String(failed.length);
+      summaryAvg.textContent = String(avg);
+      summaryGroups.textContent = `${groups["2"]} / ${groups["4"]} / ${groups["5"]}`;
+      renderExploreFailureList(failed, showReqRes.checked);
+      return;
+    }
+
     const executions = data?.run?.executions || [];
     const failed = executions.filter((ex) => {
       const assertions = ex.assertions || [];
@@ -393,6 +428,34 @@ function renderFailureList(failed, showDetails) {
     failureList.appendChild(li);
   });
 }
+
+function renderExploreFailureList(failed, showDetails) {
+  failureList.innerHTML = "";
+  if (!failed.length) {
+    const li = document.createElement("li");
+    li.textContent = "No failures.";
+    failureList.appendChild(li);
+    return;
+  }
+
+  failed.slice(0, 50).forEach((item) => {
+    const li = document.createElement("li");
+    const status = item.status || "-";
+    const err = item.error || "";
+    li.innerHTML = `
+      <div class="row">
+        <div><strong>${item.method}</strong> <span class="status">${status}</span></div>
+        <div>${item.name || ""}</div>
+      </div>
+      <div class="row">
+        <div class="url">${item.url || ""}</div>
+        <div>${item.variant || ""} ${err ? "· " + err : ""}</div>
+      </div>
+      ${showDetails ? `<pre class="reqres">Request\n${item.request?.body || ""}</pre><pre class="reqres">Response\n${item.response?.body || ""}</pre>` : ""}
+    `;
+    failureList.appendChild(li);
+  });
+}
 tabHtml.addEventListener("click", () => {
   setPreviewMode("html");
 });
@@ -436,14 +499,13 @@ runBtn.addEventListener("click", async () => {
     ip: ipInput.value.trim(),
     token: tokenInput.value.trim(),
     extraVarsJson: extraVarsInput.value.trim(),
-    invalidVarsJson: invalidVarsInput.value.trim(),
     selectedRequestNames: selectedRequestNames(),
     runInvalidAlso: runInvalidAlso.checked,
     useSelectedRequests: useSelectedRequests.checked,
-    
-    
     invalidVarsJson: invalidVarsInput.value.trim(),
     outputDir: outputDirInput.value.trim(),
+    variantsPerRequest: Number(variantsPerRequest?.value || 3),
+    exploreDelayMs: Number(exploreDelayMs?.value || 300),
     reporters,
     iterationCount: Number(iterationInput.value || 1),
     timeoutRequest: Number(timeoutInput.value || 300000),
@@ -455,14 +517,20 @@ runBtn.addEventListener("click", async () => {
     statusLine.textContent = "Output directory is required.";
     return;
   }
-  if (!payload.reporters.length) {
+  if (!payload.reporters.length && !exploreEnabled?.checked) {
     statusLine.textContent = "Select at least one reporter.";
     return;
   }
 
-  const res = await window.api.runNewman(payload);
+  const res = exploreEnabled?.checked
+    ? await window.api.runExploratory(payload)
+    : await window.api.runNewman(payload);
   if (res.ok) {
-    statusLine.textContent = `Done. JSON: ${res.reportJson} · HTML: ${res.reportHtml}`;
+    if (exploreEnabled?.checked) {
+      statusLine.textContent = `Exploratory done. JSON: ${res.reportJson}`;
+    } else {
+      statusLine.textContent = `Done. JSON: ${res.reportJson} · HTML: ${res.reportHtml}`;
+    }
     if (res.reportJson) {
       showJsonPreview(res.reportJson, res.reportHtml);
     }

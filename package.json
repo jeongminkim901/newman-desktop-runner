@@ -22,7 +22,8 @@
   },
   "dependencies": {
     "electron-updater": "^6.3.0",
-    "newman": "^6.2.1"
+    "newman": "^6.2.1",
+    "playwright": "^1.49.0"
   },
   "build": {
     "appId": "com.jeongmin.newmanrunner",

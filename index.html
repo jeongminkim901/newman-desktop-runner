@@ -81,6 +81,22 @@
             <input id="runInvalidAlso" type="checkbox" />
             Run invalid vars as a second pass
           </label>
+          <div class="wide explore-box">
+            <label class="toggle">
+              <input id="exploreEnabled" type="checkbox" />
+              Exploratory API test (Playwright)
+            </label>
+            <div class="row">
+              <label>
+                Variants per request
+                <input id="variantsPerRequest" type="number" min="1" max="5" value="3" />
+              </label>
+              <label>
+                Delay (ms)
+                <input id="exploreDelayMs" type="number" min="0" value="300" />
+              </label>
+            </div>
+          </div>
           <div class="wide selector">
             <div class="row">
               <div class="label">Collection Requests</div>

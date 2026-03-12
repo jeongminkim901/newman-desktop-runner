@@ -8,6 +8,7 @@ Electron desktop app for running Postman collections locally with Newman.
 - Run Newman locally
 - Generate HTML/JSON reports
 - Save run history
+- Exploratory API testing with Playwright (mutated requests)
 
 ## Run (dev)
 ```bash

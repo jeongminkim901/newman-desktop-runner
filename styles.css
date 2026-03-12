@@ -141,6 +141,15 @@ textarea {
   font-size: 13px;
 }
 
+.explore-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px dashed var(--border);
+  padding: 12px;
+  border-radius: 12px;
+}
+
 .tree {
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -289,11 +298,16 @@ button:hover {
 }
 
 .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: #1c2633;
   color: var(--text);
   padding: 4px 8px;
   border-radius: 999px;
   font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
 }
 
 .badge.fail {

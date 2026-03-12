@@ -2,11 +2,25 @@ const { app, BrowserWindow, dialog, ipcMain } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const newman = require("newman");
+const { request: pwRequest } = require("playwright");
 const {
   parseVarsJson,
   normalizeCollection,
   filterItemsByName
 } = require("./lib/newmanHelpers");
+const {
+  sleep,
+  truncateBody,
+  buildVarsMap,
+  substituteVars,
+  ensureAuthHeader,
+  normalizeHeaderArray,
+  getRequestUrl,
+  getQueryParams,
+  getJsonBody,
+  buildVariants,
+  buildUrlWithQuery
+} = require("./lib/exploreHelpers");
 
 let mainWindow;
 
@@ -59,6 +73,20 @@ function writeHistory(entries) {
 }
 
 ipcMain.handle("get-history", () => readHistory());
+
+function readEnvVars(environmentPath) {
+  if (!environmentPath) return [];
+  try {
+    const raw = fs.readFileSync(environmentPath, "utf-8");
+    const obj = JSON.parse(raw);
+    const values = Array.isArray(obj?.values) ? obj.values : Array.isArray(obj?.variables) ? obj.variables : [];
+    return values
+      .filter((v) => v && v.enabled !== false)
+      .map((v) => ({ key: String(v.key), value: String(v.value ?? "") }));
+  } catch {
+    return [];
+  }
+}
 
 ipcMain.handle("run-newman", async (_event, payload) => {
   const {
@@ -236,4 +264,178 @@ ipcMain.handle("run-newman", async (_event, payload) => {
     const secondary = await runOnce("invalid", invalidOverrides);
     return resolve(secondary);
   });
+});
+
+ipcMain.handle("run-exploratory", async (_event, payload) => {
+  const {
+    collectionPath,
+    environmentPath,
+    ip,
+    token,
+    extraVarsJson,
+    selectedRequestNames,
+    useSelectedRequests,
+    outputDir,
+    variantsPerRequest,
+    exploreDelayMs
+  } = payload;
+
+  if (!collectionPath) return { ok: false, error: "Collection file is required." };
+  if (!outputDir) return { ok: false, error: "Output directory is required." };
+
+  const envVars = readEnvVars(environmentPath);
+  const extraVars = extraVarsJson ? parseVarsJson(extraVarsJson) : [];
+  const varsMap = buildVarsMap({ envVars, extraVars, ip, token });
+
+  let collectionObj;
+  try {
+    const raw = fs.readFileSync(collectionPath, "utf-8");
+    collectionObj = normalizeCollection(JSON.parse(raw));
+    if (!collectionObj) throw new Error("Collection file JSON is invalid.");
+  } catch (e) {
+    return { ok: false, error: e.message || String(e) };
+  }
+
+  let items = collectionObj.item || [];
+  if (useSelectedRequests && Array.isArray(selectedRequestNames)) {
+    const nameSet = new Set(selectedRequestNames);
+    if (!nameSet.size) return { ok: false, error: "No requests selected." };
+    items = filterItemsByName(items, nameSet);
+    if (!items.length) return { ok: false, error: "No selected requests found." };
+  }
+
+  const flattenItems = (arr, out = []) => {
+    arr.forEach((it) => {
+      if (Array.isArray(it.item)) flattenItems(it.item, out);
+      else out.push(it);
+    });
+    return out;
+  };
+
+  const requests = flattenItems(items);
+  const runId = `run_${Date.now()}_explore`;
+  const reportJson = path.join(outputDir, `${runId}.json`);
+  const logPath = path.join(outputDir, `${runId}.log.txt`);
+  const logStream = fs.createWriteStream(logPath, { flags: "a" });
+  const startedAt = new Date().toISOString();
+  const emitLog = (line) => {
+    logStream.write(line + "\n");
+    mainWindow.webContents.send("run-log", line);
+  };
+
+  const maxVariants = Math.max(1, Math.min(5, Number(variantsPerRequest || 3)));
+  const delayMs = Number.isFinite(Number(exploreDelayMs)) ? Number(exploreDelayMs) : 300;
+
+  const results = [];
+  let failed = 0;
+
+  const ctx = await pwRequest.newContext();
+  emitLog("[explore] starting exploratory api test...");
+
+  for (const item of requests) {
+    const method = (item?.request?.method || "GET").toUpperCase();
+    const headers = normalizeHeaderArray(item?.request?.header, varsMap);
+    const headersWithAuth = ensureAuthHeader(headers, token);
+    const urlRaw = getRequestUrl(item?.request, varsMap, ip);
+    const queryParams = getQueryParams(item?.request, varsMap);
+    const bodyInfo = getJsonBody(item?.request, varsMap);
+    const variants = buildVariants({ queryParams, bodyJson: bodyInfo }, maxVariants);
+
+    const baseUrl = buildUrlWithQuery(urlRaw, queryParams);
+    const baseBody = bodyInfo?.raw || "";
+
+    const runOnce = async (variantLabel, url, bodyJson) => {
+      const requestBody = bodyJson ? JSON.stringify(bodyJson) : bodyInfo?.json ? JSON.stringify(bodyInfo.json) : baseBody;
+      const started = Date.now();
+      let status = 0;
+      let responseText = "";
+      let error = null;
+      try {
+        const res = await ctx.fetch(url, {
+          method,
+          headers: headersWithAuth,
+          data: requestBody || undefined
+        });
+        status = res.status();
+        responseText = truncateBody(await res.text());
+      } catch (e) {
+        error = e.message || String(e);
+      }
+      const durationMs = Date.now() - started;
+      if (error || status >= 400) failed += 1;
+      results.push({
+        name: item.name || "Request",
+        variant: variantLabel,
+        method,
+        url,
+        status,
+        durationMs,
+        error,
+        request: {
+          headers: headersWithAuth,
+          body: truncateBody(requestBody)
+        },
+        response: {
+          status,
+          body: responseText
+        }
+      });
+      emitLog(`[explore] ${method} ${url} => ${status || "ERR"} ${variantLabel}`);
+    };
+
+    await runOnce("base", baseUrl, null);
+    for (const variant of variants) {
+      if (variant.query) {
+        const vUrl = buildUrlWithQuery(urlRaw, variant.query);
+        await runOnce(variant.label, vUrl, null);
+      } else if (variant.body) {
+        await runOnce(variant.label, baseUrl, variant.body);
+      }
+      if (delayMs > 0) await sleep(delayMs);
+    }
+  }
+
+  await ctx.dispose();
+  logStream.end();
+
+  const endedAt = new Date().toISOString();
+  const summary = {
+    total: results.length,
+    failed,
+    ok: results.length - failed
+  };
+
+  const report = {
+    type: "explore",
+    startedAt,
+    endedAt,
+    summary,
+    results
+  };
+
+  fs.writeFileSync(reportJson, JSON.stringify(report, null, 2), "utf-8");
+
+  const history = readHistory();
+  history.unshift({
+    id: runId,
+    collectionPath,
+    environmentPath,
+    outputDir,
+    reportJson,
+    reportHtml: null,
+    logPath,
+    startedAt,
+    endedAt,
+    ok: failed === 0,
+    error: null,
+    label: "explore"
+  });
+  writeHistory(history.slice(0, 200));
+
+  return {
+    ok: failed === 0,
+    reportJson,
+    logPath,
+    summary
+  };
 });
