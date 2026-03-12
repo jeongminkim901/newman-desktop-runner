@@ -117,7 +117,7 @@ label {
 
 .req {
   color: var(--danger);
-  margin-left: 4px;
+  margin-right: 6px;
   font-weight: 700;
 }
 
