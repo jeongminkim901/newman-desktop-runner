@@ -6,6 +6,13 @@ const ipInput = el("ip");
 const tokenInput = el("token");
 const extraVarsInput = el("extraVars");
 const invalidVarsInput = el("invalidVars");
+const collectionEditor = el("collectionEditor");
+const loadCollectionBtn = el("loadCollectionBtn");
+const useEditedCollection = el("useEditedCollection");
+const useRequestFilter = el("useRequestFilter");
+const requestFilter = el("requestFilter");
+const showReqRes = el("showReqRes");
+const invalidVarsInput = el("invalidVars");
 const outputDirInput = el("outputDir");
 const runInvalidAlso = el("runInvalidAlso");
 const iterationInput = el("iterationCount");
@@ -193,7 +200,9 @@ function showHtmlPreview(htmlPath, jsonPath) {
     loadJsonSummary(jsonPath);
   }
   setPreviewMode("html");
-}\nasync function showJsonPreview(jsonPath, htmlPath) {
+}
+
+async function showJsonPreview(jsonPath, htmlPath) {
   try {
     const res = await fetch(`file:///${jsonPath.replace(/\\/g, "/")}`);
     const text = await res.text();
@@ -241,13 +250,13 @@ async function loadJsonSummary(jsonPath, cachedText) {
     summaryAvg.textContent = String(avg);
     summaryGroups.textContent = `${groups["2"]} / ${groups["4"]} / ${groups["5"]}`;
 
-    renderFailureList(failed);
+    renderFailureList(failed, showReqRes.checked);
   } catch (e) {
     previewSummary.textContent = `Failed to parse JSON: ${e.message}`;
   }
 }
 
-function renderFailureList(failed) {
+function renderFailureList(failed, showDetails) {
   failureList.innerHTML = "";
   if (!failed.length) {
     const li = document.createElement("li");
@@ -262,6 +271,18 @@ function renderFailureList(failed) {
     const url = ex?.item?.request?.url?.raw || ex?.item?.request?.url || "-";
     const status = ex?.response?.code || "-";
     const err = ex?.error?.message || (ex?.assertions || []).find((a) => a.error)?.error?.message || "Assertion failed";
+    const req = ex?.request || ex?.item?.request;
+    const res = ex?.response;
+    const reqJson = req ? JSON.stringify(req, null, 2) : "";
+    let resBody = "";
+    if (res?.body) resBody = res.body;
+    else if (Array.isArray(res?.stream)) {
+      try {
+        const bytes = new Uint8Array(res.stream);
+        resBody = new TextDecoder().decode(bytes);
+      } catch { resBody = ""; }
+    }
+    const resJson = res ? JSON.stringify({ code: res.code, headers: res.headers, body: resBody }, null, 2) : "";
 
     li.innerHTML = `
       <div class="row">
@@ -272,11 +293,11 @@ function renderFailureList(failed) {
         <div class="url">${url}</div>
         <div>${err}</div>
       </div>
+      ${showDetails ? `<pre class="reqres">Request\n${reqJson}</pre><pre class="reqres">Response\n${resJson}</pre>` : ""}
     `;
     failureList.appendChild(li);
   });
 }
-
 tabHtml.addEventListener("click", () => {
   setPreviewMode("html");
 });
@@ -321,7 +342,12 @@ runBtn.addEventListener("click", async () => {
     token: tokenInput.value.trim(),
     extraVarsJson: extraVarsInput.value.trim(),
     invalidVarsJson: invalidVarsInput.value.trim(),
+    collectionJson: collectionEditor.value.trim(),
     runInvalidAlso: runInvalidAlso.checked,
+    useEditedCollection: useEditedCollection.checked,
+    requestFilter: requestFilter.value.trim(),
+    useRequestFilter: useRequestFilter.checked,
+    invalidVarsJson: invalidVarsInput.value.trim(),
     outputDir: outputDirInput.value.trim(),
     reporters,
     iterationCount: Number(iterationInput.value || 1),
@@ -375,6 +401,19 @@ installUpdateBtn.addEventListener("click", async () => {
 });
 
 refreshHistory();
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

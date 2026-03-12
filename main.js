@@ -125,6 +125,10 @@ ipcMain.handle("run-newman", async (_event, payload) => {
     extraVarsJson,
     invalidVarsJson,
     runInvalidAlso,
+    collectionJson,
+    useEditedCollection,
+    requestFilter,
+    useRequestFilter,
     outputDir,
     reporters,
     iterationCount,
@@ -185,6 +189,47 @@ ipcMain.handle("run-newman", async (_event, payload) => {
 
   const invalidOverrides = invalidVarsJson ? parseVarsJson(invalidVarsJson) : [];
 
+  const normalizeCollection = (obj) => {
+    if (obj && obj.info && Array.isArray(obj.item)) return obj;
+    return null;
+  };
+
+  const filterItems = (items, term) => {
+    const out = [];
+    items.forEach((it) => {
+      if (Array.isArray(it.item)) {
+        const children = filterItems(it.item, term);
+        if (children.length) {
+          out.push({ ...it, item: children });
+        }
+      } else {
+        const name = (it.name || "").toLowerCase();
+        if (name.includes(term)) out.push(it);
+      }
+    });
+    return out;
+  };
+
+  const resolveCollection = () => {
+    if (useEditedCollection && collectionJson) {
+      const obj = normalizeCollection(JSON.parse(collectionJson));
+      if (!obj) throw new Error("Edited collection JSON is invalid.");
+      return obj;
+    }
+
+    if (useRequestFilter && requestFilter) {
+      const raw = fs.readFileSync(collectionPath, "utf-8");
+      const obj = normalizeCollection(JSON.parse(raw));
+      if (!obj) throw new Error("Collection file JSON is invalid.");
+      const term = requestFilter.toLowerCase();
+      const filtered = filterItems(obj.item || [], term);
+      if (!filtered.length) throw new Error("No requests matched the filter.");
+      return { ...obj, item: filtered };
+    }
+
+    return collectionPath;
+  };
+
   const runOnce = (label, overrides) => {
     const runId = `run_${Date.now()}_${label}`;
     const reportJson = path.join(outputDir, `${runId}.json`);
@@ -205,9 +250,11 @@ ipcMain.handle("run-newman", async (_event, payload) => {
     });
 
     return new Promise((resolve) => {
+      const collectionSource = resolveCollection();
+
       newman.run(
         {
-          collection: collectionPath,
+          collection: collectionSource,
           environment: environmentPath || undefined,
           reporters,
           reporter: {

@@ -93,6 +93,30 @@
             <input id="runInvalidAlso" type="checkbox" />
             Run invalid vars as a second pass
           </label>
+          <div class="wide editor">
+            <div class="row">
+              <div class="label">Collection Editor (optional)</div>
+              <div class="row">
+                <button id="loadCollectionBtn" type="button">Load from file</button>
+                <label class="toggle">
+                  <input id="useEditedCollection" type="checkbox" />
+                  Use edited JSON
+                </label>
+              </div>
+            </div>
+            <textarea id="collectionEditor" placeholder="Paste or edit collection JSON here"></textarea>
+          </div>
+          <div class="wide row">
+            <label class="toggle">
+              <input id="useRequestFilter" type="checkbox" />
+              Run only matching requests
+            </label>
+            <input id="requestFilter" type="text" placeholder="Request name contains..." />
+          </div>
+          <label class="toggle wide">
+            <input id="showReqRes" type="checkbox" />
+            Show request/response JSON in failure list
+          </label>
           <div class="wide">
             <label>
               Output Directory <span class="req">*</span>

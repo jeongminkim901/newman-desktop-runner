@@ -156,6 +156,25 @@ textarea {
   gap: 10px;
 }
 
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.editor .label {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.editor textarea {
+  min-height: 140px;
+}
+
+#requestFilter {
+  flex: 1;
+}
+
 .reporters {
   display: flex;
   align-items: center;
@@ -426,4 +445,15 @@ pre#jsonSoloPreview {
 .failure-list .row .status {
   color: #ffb4b4;
   font-weight: 600;
+}
+
+.reqres {
+  background: #0b1016;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  margin-top: 8px;
+  white-space: pre-wrap;
+  font-size: 11px;
+  color: var(--text);
 }
