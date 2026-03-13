@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -45,7 +45,7 @@
           </label>
           <label>
             Delay (ms)
-            <span class="help-tip" data-tip="요청 사이 지연 시간(ms)입니다.">?</span>
+            <span class="help-tip" data-tip="변형 요청 간 지연(ms)입니다. 서버 부하 완화용입니다.">?</span>
             <input id="delayRequest" type="number" min="0" value="0" />
           </label>
           <label class="toggle">
@@ -93,32 +93,30 @@
           <label class="toggle wide">
             <input id="runInvalidAlso" type="checkbox" />
             Run invalid vars as a second pass
-            <span class="help-tip" data-tip="정상 실행 후, Invalid Vars로 한 번 더 실행합니다.">?</span>
+            <span class="help-tip" data-tip="정상 실행 후 Invalid Vars로 1회 더 실행합니다. 실패 유도용이며 운영환경은 비권장입니다.">?</span>
           </label>
           <div class="wide explore-box">
           <label class="toggle">
             <input id="exploreEnabled" type="checkbox" />
             Exploratory API test (Playwright)
-            <span class="help-tip" data-tip="탐색 모드: 선택된 API에 변형 요청을 추가로 보내 품질을 점검합니다.">
-              ?
-            </span>
+            <span class="help-tip" data-tip="선택된 API에 변형 요청을 추가 전송합니다. 변형 방식: 필드 삭제/빈값/타입 변경(쿼리 우선). 리스크: 비정상 트래픽 발생 가능. 권장: 개발/스테이징에서 낮은 변형 수.">?</span>
           </label>
           <div class="row">
             <label>
               Variants per request
-              <span class="help-tip" data-tip="요청당 생성할 변형 개수입니다.">?</span>
+              <span class="help-tip" data-tip="요청당 변형 개수입니다(기본 3). 많을수록 부하/시간이 증가합니다.">?</span>
               <input id="variantsPerRequest" type="number" min="1" max="5" value="3" />
             </label>
             <label>
               Delay (ms)
-              <span class="help-tip" data-tip="탐색 요청 사이 지연(ms)입니다.">?</span>
+              <span class="help-tip" data-tip="변형 요청 간 지연(ms)입니다. 서버 부하 완화용입니다.">?</span>
               <input id="exploreDelayMs" type="number" min="0" value="300" />
             </label>
           </div>
           <div class="row">
             <label>
               Rule mode
-              <span class="help-tip" data-tip="Basic/Extended/Custom 중 선택합니다.">?</span>
+              <span class="help-tip" data-tip="Basic=안전한 기본 변형, Extended=더 공격적 변형, Custom=사용자 JSON만 적용.">?</span>
               <select id="exploreRuleMode">
                 <option value="basic" selected>Basic</option>
                 <option value="extended">Extended</option>
@@ -127,7 +125,7 @@
             </label>
             <label>
               Variant template
-              <span class="help-tip" data-tip="자주 쓰는 변형 템플릿을 자동 적용합니다.">?</span>
+              <span class="help-tip" data-tip="Auth/Boundary/SQL/XSS 템플릿을 자동 적용합니다. 운영환경 비권장.">?</span>
               <select id="exploreTemplate">
                 <option value="">Select template</option>
                 <option value="auth_missing">Auth missing</option>
@@ -139,23 +137,24 @@
             <label class="toggle">
               <input id="exploreFailedOnly" type="checkbox" />
               Re-explore failed only (from last JSON preview)
-              <span class="help-tip" data-tip="마지막 JSON Preview의 실패 요청만 재탐색합니다.">?</span>
+              <span class="help-tip" data-tip="직전 JSON Preview의 실패 요청만 재탐색합니다.">?</span>
             </label>
             <label class="toggle">
               <input id="exploreIgnoreTls" type="checkbox" />
               SSL 검증 무시 (개발/내부망용)
+              <span class="help-tip" data-tip="사설 인증서/내부망 HTTPS 오류 해결용입니다. MITM 위험이 있어 운영환경 비권장.">?</span>
             </label>
           </div>
           <label class="wide">
             Custom variants (JSON)
-            <span class="help-tip" data-tip="직접 변형 JSON을 입력합니다.">?</span>
+            <span class="help-tip" data-tip="직접 변형 JSON을 입력합니다. 형식 오류 시 변형이 무시되거나 실패할 수 있습니다.">?</span>
             <textarea id="exploreCustomJson" placeholder='[{"label":"custom-1","body":{"field":"bad"}},{"label":"q1","query":[{"key":"id","value":""}]}]'></textarea>
           </label>
           </div>
           <div class="wide selector">
             <div class="row">
               <div class="label">Collection Requests
-                <span class="help-tip" data-tip="실행할 요청을 선택합니다.">?</span>
+                <span class="help-tip" data-tip="실행 대상 API를 선택합니다.">?</span>
               </div>
               <div class="row">
                 <button id="selectAllBtn" type="button">Select all</button>
@@ -167,7 +166,7 @@
             <label class="toggle">
               <input id="useSelectedRequests" type="checkbox" />
               Run selected requests only
-              <span class="help-tip" data-tip="선택된 요청만 실행합니다.">?</span>
+              <span class="help-tip" data-tip="체크된 요청만 실행합니다.">?</span>
             </label>
           </div>
           <label class="toggle wide">
@@ -337,3 +336,4 @@
     <script src="renderer.js"></script>
   </body>
 </html>
+
