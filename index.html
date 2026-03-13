@@ -85,6 +85,9 @@
             <label class="toggle">
               <input id="exploreEnabled" type="checkbox" />
               Exploratory API test (Playwright)
+              <span class="help-tip" data-tip="탐색 모드: 선택된 API에 변형 요청을 추가로 보내 품질을 점검합니다.">
+                ?
+              </span>
             </label>
             <div class="row">
               <label>
@@ -262,6 +265,7 @@
                 </li>
                 <li><strong>Variant template</strong> 선택 시 Custom JSON이 자동 채워집니다.</li>
                 <li><strong>Re-explore failed only</strong>: 마지막 JSON Preview의 실패 요청만 재탐색</li>
+                <li><strong>SSL 검증 무시</strong>: 사설 인증서/내부망 HTTPS 오류가 날 때 사용(보안상 운영환경 비추천)</li>
               </ol>
 
               <h4>5단계: 컬렉션 요청 선택</h4>

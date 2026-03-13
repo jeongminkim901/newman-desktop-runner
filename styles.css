@@ -549,3 +549,57 @@ pre#jsonSoloPreview {
   border-radius: 8px;
   padding: 6px 10px;
 }
+
+.help-tip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  background: #1c2633;
+  color: var(--accent);
+  cursor: help;
+  position: relative;
+}
+
+.help-tip::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: 50%;
+  bottom: 130%;
+  transform: translateX(-50%);
+  background: #0b1016;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  width: max-content;
+  max-width: 260px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 10;
+}
+
+.help-tip::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 118%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: #0b1016;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+
+.help-tip:hover::after,
+.help-tip:hover::before {
+  opacity: 1;
+}
