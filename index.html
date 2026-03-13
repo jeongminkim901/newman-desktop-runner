@@ -23,39 +23,50 @@
         <h2>Run Settings</h2>
         <div class="grid">
           <label>
-            <div class="label-line"><span class="req">*</span> Collection</div>
+            <div class="label-line"><span class="req">*</span> Collection
+              <span class="help-tip" data-tip="Postman 컬렉션 JSON 파일을 선택하세요.">?</span>
+            </div>
             <input id="collectionFile" type="file" accept=".json" />
           </label>
           <label>
             Environment (optional)
+            <span class="help-tip" data-tip="환경(JSON)을 넣으면 변수 값이 자동 적용됩니다.">?</span>
             <input id="environmentFile" type="file" accept=".json" />
           </label>
           <label>
             Iterations
+            <span class="help-tip" data-tip="컬렉션을 반복 실행할 횟수입니다.">?</span>
             <input id="iterationCount" type="number" min="1" value="1" />
           </label>
           <label>
             Timeout (ms)
+            <span class="help-tip" data-tip="요청 1건당 최대 대기 시간(ms)입니다.">?</span>
             <input id="timeoutRequest" type="number" min="1000" value="300000" />
           </label>
           <label>
             Delay (ms)
+            <span class="help-tip" data-tip="요청 사이 지연 시간(ms)입니다.">?</span>
             <input id="delayRequest" type="number" min="0" value="0" />
           </label>
           <label class="toggle">
             <input id="bail" type="checkbox" />
             Stop on first failure
+            <span class="help-tip" data-tip="실패 발생 시 즉시 중단합니다.">?</span>
           </label>
           <label>
             IP
+            <span class="help-tip" data-tip="컬렉션 변수 {{ip}}에 치환됩니다.">?</span>
             <input id="ip" type="text" placeholder="192.168.0.1" />
           </label>
           <label>
             Token
+            <span class="help-tip" data-tip="{{token}} 치환 및 Authorization 헤더 자동 추가에 사용됩니다.">?</span>
             <input id="token" type="text" placeholder="Bearer ..." />
           </label>
           <div class="reporters wide">
-            <div class="label">Reporters</div>
+            <div class="label">Reporters
+              <span class="help-tip" data-tip="출력 리포트 형식을 선택합니다.">?</span>
+            </div>
             <label class="toggle">
               <input id="repCli" type="checkbox" checked />
               CLI
@@ -71,70 +82,81 @@
           </div>
           <label class="wide">
             Extra Vars (JSON)
+            <span class="help-tip" data-tip="추가 변수 JSON을 입력합니다. 예: {\"key\":\"value\"}">?</span>
             <textarea id="extraVars" placeholder='{"key":"value"} or [{"key":"k","value":"v"}]'></textarea>
           </label>
           <label class="wide">
             Invalid Vars (JSON)
+            <span class="help-tip" data-tip="실패 유도용 변수 오버라이드 JSON입니다.">?</span>
             <textarea id="invalidVars" placeholder='Override vars for invalid run (optional)'></textarea>
           </label>
           <label class="toggle wide">
             <input id="runInvalidAlso" type="checkbox" />
             Run invalid vars as a second pass
+            <span class="help-tip" data-tip="정상 실행 후, Invalid Vars로 한 번 더 실행합니다.">?</span>
           </label>
           <div class="wide explore-box">
-            <label class="toggle">
-              <input id="exploreEnabled" type="checkbox" />
-              Exploratory API test (Playwright)
-              <span class="help-tip" data-tip="탐색 모드: 선택된 API에 변형 요청을 추가로 보내 품질을 점검합니다.">
-                ?
-              </span>
+          <label class="toggle">
+            <input id="exploreEnabled" type="checkbox" />
+            Exploratory API test (Playwright)
+            <span class="help-tip" data-tip="탐색 모드: 선택된 API에 변형 요청을 추가로 보내 품질을 점검합니다.">
+              ?
+            </span>
+          </label>
+          <div class="row">
+            <label>
+              Variants per request
+              <span class="help-tip" data-tip="요청당 생성할 변형 개수입니다.">?</span>
+              <input id="variantsPerRequest" type="number" min="1" max="5" value="3" />
             </label>
-            <div class="row">
-              <label>
-                Variants per request
-                <input id="variantsPerRequest" type="number" min="1" max="5" value="3" />
-              </label>
-              <label>
-                Delay (ms)
-                <input id="exploreDelayMs" type="number" min="0" value="300" />
-              </label>
-            </div>
-            <div class="row">
-              <label>
-                Rule mode
-                <select id="exploreRuleMode">
-                  <option value="basic" selected>Basic</option>
-                  <option value="extended">Extended</option>
-                  <option value="custom">Custom</option>
-                </select>
-              </label>
-              <label>
-                Variant template
-                <select id="exploreTemplate">
-                  <option value="">Select template</option>
-                  <option value="auth_missing">Auth missing</option>
-                  <option value="boundary_values">Boundary values</option>
+            <label>
+              Delay (ms)
+              <span class="help-tip" data-tip="탐색 요청 사이 지연(ms)입니다.">?</span>
+              <input id="exploreDelayMs" type="number" min="0" value="300" />
+            </label>
+          </div>
+          <div class="row">
+            <label>
+              Rule mode
+              <span class="help-tip" data-tip="Basic/Extended/Custom 중 선택합니다.">?</span>
+              <select id="exploreRuleMode">
+                <option value="basic" selected>Basic</option>
+                <option value="extended">Extended</option>
+                <option value="custom">Custom</option>
+              </select>
+            </label>
+            <label>
+              Variant template
+              <span class="help-tip" data-tip="자주 쓰는 변형 템플릿을 자동 적용합니다.">?</span>
+              <select id="exploreTemplate">
+                <option value="">Select template</option>
+                <option value="auth_missing">Auth missing</option>
+                <option value="boundary_values">Boundary values</option>
                   <option value="sql_injection">SQL injection</option>
                   <option value="xss_payloads">XSS payloads</option>
                 </select>
               </label>
-              <label class="toggle">
-                <input id="exploreFailedOnly" type="checkbox" />
-                Re-explore failed only (from last JSON preview)
-              </label>
-              <label class="toggle">
-                <input id="exploreIgnoreTls" type="checkbox" />
-                SSL 검증 무시 (개발/내부망용)
-              </label>
-            </div>
-            <label class="wide">
-              Custom variants (JSON)
-              <textarea id="exploreCustomJson" placeholder='[{"label":"custom-1","body":{"field":"bad"}},{"label":"q1","query":[{"key":"id","value":""}]}]'></textarea>
+            <label class="toggle">
+              <input id="exploreFailedOnly" type="checkbox" />
+              Re-explore failed only (from last JSON preview)
+              <span class="help-tip" data-tip="마지막 JSON Preview의 실패 요청만 재탐색합니다.">?</span>
             </label>
+            <label class="toggle">
+              <input id="exploreIgnoreTls" type="checkbox" />
+              SSL 검증 무시 (개발/내부망용)
+            </label>
+          </div>
+          <label class="wide">
+            Custom variants (JSON)
+            <span class="help-tip" data-tip="직접 변형 JSON을 입력합니다.">?</span>
+            <textarea id="exploreCustomJson" placeholder='[{"label":"custom-1","body":{"field":"bad"}},{"label":"q1","query":[{"key":"id","value":""}]}]'></textarea>
+          </label>
           </div>
           <div class="wide selector">
             <div class="row">
-              <div class="label">Collection Requests</div>
+              <div class="label">Collection Requests
+                <span class="help-tip" data-tip="실행할 요청을 선택합니다.">?</span>
+              </div>
               <div class="row">
                 <button id="selectAllBtn" type="button">Select all</button>
                 <button id="selectNoneBtn" type="button">Select none</button>
@@ -145,15 +167,19 @@
             <label class="toggle">
               <input id="useSelectedRequests" type="checkbox" />
               Run selected requests only
+              <span class="help-tip" data-tip="선택된 요청만 실행합니다.">?</span>
             </label>
           </div>
           <label class="toggle wide">
             <input id="showReqRes" type="checkbox" />
             Show request/response JSON in failure list
+            <span class="help-tip" data-tip="실패 항목에 요청/응답 JSON을 표시합니다.">?</span>
           </label>
           <div class="wide">
             <label>
-              <div class="label-line"><span class="req">*</span> Output Directory</div>
+              <div class="label-line"><span class="req">*</span> Output Directory
+                <span class="help-tip" data-tip="리포트/로그가 저장될 폴더입니다.">?</span>
+              </div>
               <div class="row">
                 <input id="outputDir" type="text" placeholder="C:\\Users\\...\\Documents\\newman-reports" />
                 <button id="pickDirBtn" type="button">Browse</button>
@@ -181,6 +207,7 @@
             <button id="filterOk" class="seg" type="button">OK</button>
             <button id="filterFail" class="seg" type="button">Fail</button>
             <button id="filterExplore" class="seg" type="button">Explore</button>
+            <span class="help-tip" data-tip="History 필터: 성공/실패/탐색 실행만 보기">?</span>
           </div>
         </div>
         <ul id="historyList" class="history"></ul>
@@ -194,6 +221,7 @@
           <button id="tabExplore" class="tab" type="button">Explore</button>
           <button id="tabHelp" class="tab" type="button">HELP</button>
           <button id="tabSplit" class="tab" type="button">Split</button>
+          <span class="help-tip" data-tip="Preview 탭: HTML/JSON/Explore/HELP/Split 전환">?</span>
         </div>
         <div id="previewSummary" class="preview-summary">No report loaded.</div>
         <div class="cards">
