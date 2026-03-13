@@ -221,44 +221,70 @@
           <ul id="failureList" class="failure-list"></ul>
         </div>
         <div id="helpPanel" class="help-panel hidden">
-          <h3>사용 설명서</h3>
-          <p>Newman Desktop Runner는 Postman 컬렉션을 로컬에서 실행하고, 리포트와 로그를 저장하는 도구입니다.</p>
+          <h3>사용 설명서 (단계별)</h3>
+          <p>Postman 컬렉션을 로컬에서 실행하고 리포트/로그를 저장합니다. 탐색 모드는 변형 요청으로 품질을 점검합니다.</p>
 
-          <h4>1) 필수 입력</h4>
-          <ul>
-            <li><strong>Collection *</strong>: Postman 컬렉션 JSON</li>
-            <li><strong>Output Directory *</strong>: 리포트/로그 저장 폴더</li>
-          </ul>
+          <h4>1단계: 필수 입력</h4>
+          <ol>
+            <li><strong>Collection *</strong>에서 Postman 컬렉션 JSON을 선택합니다.</li>
+            <li><strong>Output Directory *</strong>에 리포트/로그 저장 폴더를 지정합니다.</li>
+          </ol>
 
-          <h4>2) 실행 모드</h4>
-          <ul>
-            <li><strong>Run Newman</strong>: 일반 컬렉션 실행</li>
-            <li><strong>Exploratory API test</strong>: 변형 요청으로 탐색 테스트</li>
-          </ul>
+          <h4>2단계: 선택 입력</h4>
+          <ol>
+            <li><strong>Environment (optional)</strong>을 넣으면 변수 값이 자동 적용됩니다.</li>
+            <li><strong>IP</strong>와 <strong>Token</strong>을 입력하면 요청에 치환/헤더가 자동 적용됩니다.</li>
+            <li><strong>Extra Vars</strong>로 추가 변수 JSON을 넣을 수 있습니다.</li>
+          </ol>
 
-          <h4>3) Exploratory 옵션</h4>
-          <ul>
+          <h4>3단계: 실행 모드 선택</h4>
+          <ol>
+            <li><strong>Run Newman</strong>만 켜면 일반 실행입니다.</li>
+            <li><strong>Exploratory API test</strong>를 켜면 변형 요청 테스트가 수행됩니다.</li>
+          </ol>
+
+          <h4>4단계: 탐색 옵션 설정</h4>
+          <ol>
             <li><strong>Variants per request</strong>: 요청당 변형 개수(기본 3, 최대 5)</li>
             <li><strong>Delay (ms)</strong>: 요청 사이 지연(기본 300ms)</li>
             <li><strong>Rule mode</strong>:
-              Basic(필드삭제/빈값/타입깨기), Extended(경계/특수문자 포함), Custom(직접 JSON 입력)
+              Basic(필드삭제/빈값/타입깨기), Extended(경계/특수문자 포함), Custom(직접 JSON)
             </li>
-            <li><strong>Variant template</strong>: 사전 템플릿 선택 시 Custom JSON 자동 채움</li>
-            <li><strong>Re-explore failed only</strong>: 마지막 JSON Preview의 실패 요청만 재탐색(자동 Extended)</li>
-          </ul>
+            <li><strong>Variant template</strong> 선택 시 Custom JSON이 자동 채워집니다.</li>
+            <li><strong>Re-explore failed only</strong>: 마지막 JSON Preview의 실패 요청만 재탐색</li>
+          </ol>
 
-          <h4>4) History & Preview</h4>
-          <ul>
-            <li>History에서 결과를 열고 Preview로 확인 가능</li>
-            <li>Explore 런은 <strong>EXPLORE</strong> 배지로 표시</li>
-            <li>Explore 탭은 탐색 리포트(JSON) 보기용</li>
-          </ul>
+          <h4>5단계: 컬렉션 요청 선택</h4>
+          <ol>
+            <li>트리에서 실행할 요청을 선택하거나 Search로 필터링합니다.</li>
+            <li><strong>Run selected requests only</strong>를 켜면 선택된 요청만 실행됩니다.</li>
+          </ol>
 
-          <h4>5) 자주 묻는 문제</h4>
+          <h4>6단계: 실행</h4>
+          <ol>
+            <li><strong>Run Newman</strong> 버튼을 누릅니다.</li>
+            <li>상태줄과 Live Logs에 진행 상황이 표시됩니다.</li>
+          </ol>
+
+          <h4>7단계: 결과 확인</h4>
+          <ol>
+            <li>History에서 실행 결과를 확인합니다.</li>
+            <li>Open/Preview 버튼으로 HTML/JSON/Log를 볼 수 있습니다.</li>
+            <li>Explore 런은 <strong>EXPLORE</strong> 배지로 표시됩니다.</li>
+          </ol>
+
+          <h4>8단계: 실패만 재탐색</h4>
+          <ol>
+            <li>먼저 JSON Preview를 한 번 엽니다.</li>
+            <li><strong>Re-explore failed only</strong> 체크 후 다시 실행합니다.</li>
+            <li>이때 Rule mode는 자동으로 Extended로 동작합니다.</li>
+          </ol>
+
+          <h4>자주 묻는 문제</h4>
           <ul>
             <li>HTML이 비면: HTML Reporter 체크 확인</li>
             <li>파일 열기 실패: Output Directory 권한 확인</li>
-            <li>탐색 실패만 재실행: 먼저 JSON Preview를 한번 열어야 함</li>
+            <li>실패만 재실행이 안됨: JSON Preview를 먼저 열어야 함</li>
           </ul>
         </div>
       </section>
