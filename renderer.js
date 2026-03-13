@@ -24,6 +24,7 @@ const exploreDelayMs = el("exploreDelayMs");
 const exploreRuleMode = el("exploreRuleMode");
 const exploreCustomJson = el("exploreCustomJson");
 const exploreFailedOnly = el("exploreFailedOnly");
+const exploreTemplate = el("exploreTemplate");
 const repCli = el("repCli");
 const repHtml = el("repHtml");
 const repJson = el("repJson");
@@ -34,6 +35,7 @@ const historyList = el("historyList");
 const statusLine = el("statusLine");
 const tabHtml = el("tabHtml");
 const tabJson = el("tabJson");
+const tabExplore = el("tabExplore");
 const tabSplit = el("tabSplit");
 const htmlPreview = el("htmlPreview");
 const jsonPreview = el("jsonPreview");
@@ -45,6 +47,7 @@ const historySearch = el("historySearch");
 const filterAll = el("filterAll");
 const filterOk = el("filterOk");
 const filterFail = el("filterFail");
+const filterExplore = el("filterExplore");
 const splitResizer = el("splitResizer");
 const summaryTotal = el("summaryTotal");
 const summaryFailed = el("summaryFailed");
@@ -165,6 +168,33 @@ selectNoneBtn.addEventListener("click", () => {
 let historyCache = [];
 let historyFilter = "all";
 let lastPreviewJsonPath = "";
+const templateMap = {
+  auth_missing: [
+    { label: "auth:missing", body: { token: "" } }
+  ],
+  boundary_values: [
+    { label: "boundary:zero", body: { value: 0 } },
+    { label: "boundary:negative", body: { value: -1 } },
+    { label: "boundary:large", body: { value: 999999999 } }
+  ],
+  sql_injection: [
+    { label: "sql:basic", body: { query: "' OR 1=1 --" } },
+    { label: "sql:union", body: { query: "' UNION SELECT 1,2 --" } }
+  ],
+  xss_payloads: [
+    { label: "xss:script", body: { input: "<script>alert(1)</script>" } },
+    { label: "xss:img", body: { input: "<img src=x onerror=alert(1)>" } }
+  ]
+};
+
+if (exploreTemplate) {
+  exploreTemplate.addEventListener("change", () => {
+    const key = exploreTemplate.value;
+    if (!key) return;
+    exploreRuleMode.value = "custom";
+    exploreCustomJson.value = JSON.stringify(templateMap[key] || [], null, 2);
+  });
+}
 
 function appendLog(line) {
   const div = document.createElement("div");
@@ -186,6 +216,7 @@ function setFilter(next) {
   filterAll.classList.toggle("active", next === "all");
   filterOk.classList.toggle("active", next === "ok");
   filterFail.classList.toggle("active", next === "fail");
+  filterExplore.classList.toggle("active", next === "explore");
   renderHistory();
 }
 
@@ -194,6 +225,7 @@ function renderHistory() {
   const filtered = historyCache.filter((item) => {
     if (historyFilter === "ok" && !item.ok) return false;
     if (historyFilter === "fail" && item.ok) return false;
+    if (historyFilter === "explore" && item.label !== "explore") return false;
     if (!q) return true;
     const hay = `${item.id} ${item.collectionPath} ${item.environmentPath || ""} ${item.outputDir}`;
     return hay.toLowerCase().includes(q);
@@ -276,15 +308,17 @@ pickDirBtn.addEventListener("click", async () => {
 function setPreviewMode(mode) {
   const isHtml = mode === "html";
   const isJson = mode === "json";
+  const isExplore = mode === "explore";
   const isSplit = mode === "split";
 
   tabHtml.classList.toggle("active", isHtml);
   tabJson.classList.toggle("active", isJson);
+  tabExplore.classList.toggle("active", isExplore);
   tabSplit.classList.toggle("active", isSplit);
 
   splitPreview.classList.toggle("hidden", !isSplit);
   htmlSoloPreview.classList.toggle("hidden", !isHtml);
-  jsonSoloPreview.classList.toggle("hidden", !isJson);
+  jsonSoloPreview.classList.toggle("hidden", !(isJson || isExplore));
 
   if (isSplit) {
     htmlPreview.classList.remove("hidden");
@@ -488,6 +522,10 @@ tabJson.addEventListener("click", () => {
   setPreviewMode("json");
 });
 
+tabExplore.addEventListener("click", () => {
+  setPreviewMode("explore");
+});
+
 tabSplit.addEventListener("click", () => {
   setPreviewMode("split");
 });
@@ -550,7 +588,7 @@ runBtn.addEventListener("click", async () => {
     outputDir: outputDirInput.value.trim(),
     variantsPerRequest: Number(variantsPerRequest?.value || 3),
     exploreDelayMs: Number(exploreDelayMs?.value || 300),
-    exploreRuleMode: exploreRuleMode?.value || "basic",
+    exploreRuleMode: exploreFailedOnly?.checked ? "extended" : (exploreRuleMode?.value || "basic"),
     exploreCustomJson: exploreCustomJson?.value?.trim(),
     failedOnly: !!exploreFailedOnly?.checked,
     failedRequestNames,
@@ -593,6 +631,7 @@ historySearch.addEventListener("input", renderHistory);
 filterAll.addEventListener("click", () => setFilter("all"));
 filterOk.addEventListener("click", () => setFilter("ok"));
 filterFail.addEventListener("click", () => setFilter("fail"));
+filterExplore.addEventListener("click", () => setFilter("explore"));
 
 refreshHistory();
 

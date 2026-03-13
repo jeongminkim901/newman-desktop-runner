@@ -158,6 +158,10 @@ textarea {
   padding: 8px 10px;
 }
 
+.explore-box textarea {
+  min-height: 90px;
+}
+
 .tree {
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -253,6 +257,7 @@ button:hover {
 .segmented {
   display: flex;
   gap: 6px;
+  flex-wrap: wrap;
 }
 
 .seg {

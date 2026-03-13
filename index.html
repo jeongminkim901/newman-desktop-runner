@@ -105,6 +105,16 @@
                   <option value="custom">Custom</option>
                 </select>
               </label>
+              <label>
+                Variant template
+                <select id="exploreTemplate">
+                  <option value="">Select template</option>
+                  <option value="auth_missing">Auth missing</option>
+                  <option value="boundary_values">Boundary values</option>
+                  <option value="sql_injection">SQL injection</option>
+                  <option value="xss_payloads">XSS payloads</option>
+                </select>
+              </label>
               <label class="toggle">
                 <input id="exploreFailedOnly" type="checkbox" />
                 Re-explore failed only (from last JSON preview)
@@ -163,6 +173,7 @@
             <button id="filterAll" class="seg active" type="button">All</button>
             <button id="filterOk" class="seg" type="button">OK</button>
             <button id="filterFail" class="seg" type="button">Fail</button>
+            <button id="filterExplore" class="seg" type="button">Explore</button>
           </div>
         </div>
         <ul id="historyList" class="history"></ul>
@@ -173,6 +184,7 @@
         <div class="tabs">
           <button id="tabHtml" class="tab active" type="button">HTML</button>
           <button id="tabJson" class="tab" type="button">JSON</button>
+          <button id="tabExplore" class="tab" type="button">Explore</button>
           <button id="tabSplit" class="tab" type="button">Split</button>
         </div>
         <div id="previewSummary" class="preview-summary">No report loaded.</div>
