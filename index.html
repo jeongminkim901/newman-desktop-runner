@@ -185,6 +185,7 @@
           <button id="tabHtml" class="tab active" type="button">HTML</button>
           <button id="tabJson" class="tab" type="button">JSON</button>
           <button id="tabExplore" class="tab" type="button">Explore</button>
+          <button id="tabHelp" class="tab" type="button">HELP</button>
           <button id="tabSplit" class="tab" type="button">Split</button>
         </div>
         <div id="previewSummary" class="preview-summary">No report loaded.</div>
@@ -218,6 +219,47 @@
         <div class="failures">
           <div class="failures-title">Failed Requests</div>
           <ul id="failureList" class="failure-list"></ul>
+        </div>
+        <div id="helpPanel" class="help-panel hidden">
+          <h3>사용 설명서</h3>
+          <p>Newman Desktop Runner는 Postman 컬렉션을 로컬에서 실행하고, 리포트와 로그를 저장하는 도구입니다.</p>
+
+          <h4>1) 필수 입력</h4>
+          <ul>
+            <li><strong>Collection *</strong>: Postman 컬렉션 JSON</li>
+            <li><strong>Output Directory *</strong>: 리포트/로그 저장 폴더</li>
+          </ul>
+
+          <h4>2) 실행 모드</h4>
+          <ul>
+            <li><strong>Run Newman</strong>: 일반 컬렉션 실행</li>
+            <li><strong>Exploratory API test</strong>: 변형 요청으로 탐색 테스트</li>
+          </ul>
+
+          <h4>3) Exploratory 옵션</h4>
+          <ul>
+            <li><strong>Variants per request</strong>: 요청당 변형 개수(기본 3, 최대 5)</li>
+            <li><strong>Delay (ms)</strong>: 요청 사이 지연(기본 300ms)</li>
+            <li><strong>Rule mode</strong>:
+              Basic(필드삭제/빈값/타입깨기), Extended(경계/특수문자 포함), Custom(직접 JSON 입력)
+            </li>
+            <li><strong>Variant template</strong>: 사전 템플릿 선택 시 Custom JSON 자동 채움</li>
+            <li><strong>Re-explore failed only</strong>: 마지막 JSON Preview의 실패 요청만 재탐색(자동 Extended)</li>
+          </ul>
+
+          <h4>4) History & Preview</h4>
+          <ul>
+            <li>History에서 결과를 열고 Preview로 확인 가능</li>
+            <li>Explore 런은 <strong>EXPLORE</strong> 배지로 표시</li>
+            <li>Explore 탭은 탐색 리포트(JSON) 보기용</li>
+          </ul>
+
+          <h4>5) 자주 묻는 문제</h4>
+          <ul>
+            <li>HTML이 비면: HTML Reporter 체크 확인</li>
+            <li>파일 열기 실패: Output Directory 권한 확인</li>
+            <li>탐색 실패만 재실행: 먼저 JSON Preview를 한번 열어야 함</li>
+          </ul>
         </div>
       </section>
     </main>

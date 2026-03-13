@@ -36,6 +36,7 @@ const statusLine = el("statusLine");
 const tabHtml = el("tabHtml");
 const tabJson = el("tabJson");
 const tabExplore = el("tabExplore");
+const tabHelp = el("tabHelp");
 const tabSplit = el("tabSplit");
 const htmlPreview = el("htmlPreview");
 const jsonPreview = el("jsonPreview");
@@ -43,6 +44,10 @@ const htmlSoloPreview = el("htmlSoloPreview");
 const jsonSoloPreview = el("jsonSoloPreview");
 const splitPreview = el("splitPreview");
 const previewSummary = el("previewSummary");
+const previewCards = document.querySelector(".cards");
+const previewPanel = document.querySelector(".preview");
+const failuresPanel = document.querySelector(".failures");
+const helpPanel = el("helpPanel");
 const historySearch = el("historySearch");
 const filterAll = el("filterAll");
 const filterOk = el("filterOk");
@@ -309,21 +314,29 @@ function setPreviewMode(mode) {
   const isHtml = mode === "html";
   const isJson = mode === "json";
   const isExplore = mode === "explore";
+  const isHelp = mode === "help";
   const isSplit = mode === "split";
 
   tabHtml.classList.toggle("active", isHtml);
   tabJson.classList.toggle("active", isJson);
   tabExplore.classList.toggle("active", isExplore);
+  tabHelp.classList.toggle("active", isHelp);
   tabSplit.classList.toggle("active", isSplit);
 
   splitPreview.classList.toggle("hidden", !isSplit);
-  htmlSoloPreview.classList.toggle("hidden", !isHtml);
-  jsonSoloPreview.classList.toggle("hidden", !(isJson || isExplore));
+  htmlSoloPreview.classList.toggle("hidden", !isHtml || isHelp);
+  jsonSoloPreview.classList.toggle("hidden", !(isJson || isExplore) || isHelp);
 
   if (isSplit) {
     htmlPreview.classList.remove("hidden");
     jsonPreview.classList.remove("hidden");
   }
+
+  previewSummary.classList.toggle("hidden", isHelp);
+  if (previewCards) previewCards.classList.toggle("hidden", isHelp);
+  if (previewPanel) previewPanel.classList.toggle("hidden", isHelp);
+  if (failuresPanel) failuresPanel.classList.toggle("hidden", isHelp);
+  if (helpPanel) helpPanel.classList.toggle("hidden", !isHelp);
 }
 
 async function loadHtmlPreview(htmlPath) {
@@ -524,6 +537,10 @@ tabJson.addEventListener("click", () => {
 
 tabExplore.addEventListener("click", () => {
   setPreviewMode("explore");
+});
+
+tabHelp.addEventListener("click", () => {
+  setPreviewMode("help");
 });
 
 tabSplit.addEventListener("click", () => {

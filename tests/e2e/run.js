@@ -10,16 +10,18 @@ async function run() {
   await page.goto(fileUrl);
 
   const runBtn = page.getByRole("button", { name: "Run Newman" });
-  const historyTitle = page.getByText("History");
+  const historyTitle = page.getByRole("heading", { name: "History" });
   const exploreToggle = page.getByText("Exploratory API test (Playwright)");
-  const ruleMode = page.getByText("Rule mode");
-  const failedOnly = page.getByText("Re-explore failed only");
+  const ruleMode = page.getByLabel("Rule mode");
+  const failedOnly = page.getByText("Re-explore failed only (from last JSON preview)");
+  const helpTab = page.getByRole("button", { name: "HELP" });
 
   await runBtn.waitFor({ state: "visible", timeout: 5000 });
   await historyTitle.waitFor({ state: "visible", timeout: 5000 });
   await exploreToggle.waitFor({ state: "visible", timeout: 5000 });
   await ruleMode.waitFor({ state: "visible", timeout: 5000 });
   await failedOnly.waitFor({ state: "visible", timeout: 5000 });
+  await helpTab.waitFor({ state: "visible", timeout: 5000 });
 
   await browser.close();
   console.log("E2E OK");

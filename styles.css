@@ -479,3 +479,28 @@ pre#jsonSoloPreview {
   font-size: 11px;
   color: var(--text);
 }
+
+.help-panel {
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  background: #0f141b;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.help-panel h3 {
+  margin: 0 0 10px;
+  font-size: 18px;
+}
+
+.help-panel h4 {
+  margin: 14px 0 6px;
+  font-size: 14px;
+}
+
+.help-panel ul {
+  margin: 0 0 8px;
+  padding-left: 18px;
+}
