@@ -310,6 +310,7 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     exploreDelayMs,
     exploreRuleMode,
     exploreCustomJson,
+    ignoreTls,
     failedOnly,
     failedRequestNames
   } = payload;
@@ -377,7 +378,7 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
   const results = [];
   let failed = 0;
 
-  const ctx = await pwRequest.newContext();
+  const ctx = await pwRequest.newContext({ ignoreHTTPSErrors: !!ignoreTls });
   emitLog("[explore] starting exploratory api test...");
 
   for (const item of requests) {

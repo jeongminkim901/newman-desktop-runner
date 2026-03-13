@@ -25,6 +25,7 @@ const exploreRuleMode = el("exploreRuleMode");
 const exploreCustomJson = el("exploreCustomJson");
 const exploreFailedOnly = el("exploreFailedOnly");
 const exploreTemplate = el("exploreTemplate");
+const exploreIgnoreTls = el("exploreIgnoreTls");
 const repCli = el("repCli");
 const repHtml = el("repHtml");
 const repJson = el("repJson");
@@ -630,6 +631,7 @@ runBtn.addEventListener("click", async () => {
     exploreDelayMs: Number(exploreDelayMs?.value || 300),
     exploreRuleMode: exploreFailedOnly?.checked ? "extended" : (exploreRuleMode?.value || "basic"),
     exploreCustomJson: exploreCustomJson?.value?.trim(),
+    ignoreTls: !!exploreIgnoreTls?.checked,
     failedOnly: !!exploreFailedOnly?.checked,
     failedRequestNames,
     reporters,
