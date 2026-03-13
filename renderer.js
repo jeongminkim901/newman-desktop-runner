@@ -560,6 +560,11 @@ if (helpModal) {
     }
   });
 }
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    closeHelpModal();
+  }
+});
 
 tabSplit.addEventListener("click", () => {
   setPreviewMode("split");
