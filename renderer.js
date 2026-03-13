@@ -47,7 +47,8 @@ const previewSummary = el("previewSummary");
 const previewCards = document.querySelector(".cards");
 const previewPanel = document.querySelector(".preview");
 const failuresPanel = document.querySelector(".failures");
-const helpPanel = el("helpPanel");
+const helpModal = el("helpModal");
+const helpClose = el("helpClose");
 const historySearch = el("historySearch");
 const filterAll = el("filterAll");
 const filterOk = el("filterOk");
@@ -209,7 +210,7 @@ function appendLog(line) {
 }
 
 window.api.onRunLog((msg) => appendLog(msg));
-window.api.onOpenHelp(() => setPreviewMode("help"));
+window.api.onOpenHelp(() => openHelpModal());
 
 async function refreshHistory() {
   const history = await window.api.getHistory();
@@ -311,33 +312,39 @@ pickDirBtn.addEventListener("click", async () => {
   if (dir) outputDirInput.value = dir;
 });
 
+function openHelpModal() {
+  if (helpModal) helpModal.classList.remove("hidden");
+}
+
+function closeHelpModal() {
+  if (helpModal) helpModal.classList.add("hidden");
+}
+
 function setPreviewMode(mode) {
   const isHtml = mode === "html";
   const isJson = mode === "json";
   const isExplore = mode === "explore";
-  const isHelp = mode === "help";
   const isSplit = mode === "split";
 
   tabHtml.classList.toggle("active", isHtml);
   tabJson.classList.toggle("active", isJson);
   tabExplore.classList.toggle("active", isExplore);
-  tabHelp.classList.toggle("active", isHelp);
+  tabHelp.classList.remove("active");
   tabSplit.classList.toggle("active", isSplit);
 
   splitPreview.classList.toggle("hidden", !isSplit);
-  htmlSoloPreview.classList.toggle("hidden", !isHtml || isHelp);
-  jsonSoloPreview.classList.toggle("hidden", !(isJson || isExplore) || isHelp);
+  htmlSoloPreview.classList.toggle("hidden", !isHtml);
+  jsonSoloPreview.classList.toggle("hidden", !(isJson || isExplore));
 
   if (isSplit) {
     htmlPreview.classList.remove("hidden");
     jsonPreview.classList.remove("hidden");
   }
 
-  previewSummary.classList.toggle("hidden", isHelp);
-  if (previewCards) previewCards.classList.toggle("hidden", isHelp);
-  if (previewPanel) previewPanel.classList.toggle("hidden", isHelp);
-  if (failuresPanel) failuresPanel.classList.toggle("hidden", isHelp);
-  if (helpPanel) helpPanel.classList.toggle("hidden", !isHelp);
+  previewSummary.classList.toggle("hidden", false);
+  if (previewCards) previewCards.classList.toggle("hidden", false);
+  if (previewPanel) previewPanel.classList.toggle("hidden", false);
+  if (failuresPanel) failuresPanel.classList.toggle("hidden", false);
 }
 
 async function loadHtmlPreview(htmlPath) {
@@ -541,8 +548,18 @@ tabExplore.addEventListener("click", () => {
 });
 
 tabHelp.addEventListener("click", () => {
-  setPreviewMode("help");
+  openHelpModal();
 });
+
+if (helpClose) helpClose.addEventListener("click", closeHelpModal);
+if (helpModal) {
+  helpModal.addEventListener("click", (e) => {
+    const target = e.target;
+    if (target && target.getAttribute && target.getAttribute("data-close") === "1") {
+      closeHelpModal();
+    }
+  });
+}
 
 tabSplit.addEventListener("click", () => {
   setPreviewMode("split");
