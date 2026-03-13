@@ -5,5 +5,6 @@ contextBridge.exposeInMainWorld("api", {
   runNewman: (payload) => ipcRenderer.invoke("run-newman", payload),
   runExploratory: (payload) => ipcRenderer.invoke("run-exploratory", payload),
   getHistory: () => ipcRenderer.invoke("get-history"),
-  onRunLog: (cb) => ipcRenderer.on("run-log", (_event, msg) => cb(msg))
+  onRunLog: (cb) => ipcRenderer.on("run-log", (_event, msg) => cb(msg)),
+  onOpenHelp: (cb) => ipcRenderer.on("open-help", () => cb())
 });

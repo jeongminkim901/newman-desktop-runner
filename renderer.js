@@ -209,6 +209,7 @@ function appendLog(line) {
 }
 
 window.api.onRunLog((msg) => appendLog(msg));
+window.api.onOpenHelp(() => setPreviewMode("help"));
 
 async function refreshHistory() {
   const history = await window.api.getHistory();

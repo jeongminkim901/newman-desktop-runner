@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, Menu } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const newman = require("newman");
@@ -35,6 +35,36 @@ function createWindow() {
   });
 
   mainWindow.loadFile("index.html");
+
+  const template = [
+    ...(process.platform === "darwin"
+      ? [
+          {
+            label: app.name,
+            submenu: [ { role: "about" }, { type: "separator" }, { role: "quit" } ]
+          }
+        ]
+      : []),
+    { role: "fileMenu" },
+    { role: "editMenu" },
+    { role: "viewMenu" },
+    { role: "windowMenu" },
+    {
+      role: "help",
+      submenu: [
+        {
+          label: "Open Help",
+          click: () => {
+            if (mainWindow?.webContents) {
+              mainWindow.webContents.send("open-help");
+            }
+          }
+        }
+      ]
+    }
+  ];
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
 }
 
 app.whenReady().then(() => {
