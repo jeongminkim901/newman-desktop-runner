@@ -86,12 +86,12 @@
           <label class="wide">
             Extra Vars (JSON)
             <span class="help-tip" data-tip="추가 변수 JSON을 입력합니다. 예: {\"key\":\"value\"}">?</span>
-            <textarea id="extraVars" placeholder='{"key":"value"} or [{"key":"k","value":"v"}]'></textarea>
+            <textarea id="extraVars" placeholder='{"key":"value"}&#10;or&#10;[{"key":"k","value":"v"}]'></textarea>
           </label>
           <label class="wide">
             Invalid Vars (JSON)
             <span class="help-tip" data-tip="실패 유도용 변수 오버라이드 JSON입니다.">?</span>
-            <textarea id="invalidVars" placeholder='Override vars for invalid run (optional)'></textarea>
+            <textarea id="invalidVars" placeholder='Override vars for invalid run&#10;(optional)'></textarea>
           </label>
           <label class="toggle wide">
             <input id="runInvalidAlso" type="checkbox" />
@@ -151,7 +151,7 @@
           <label class="wide">
             Custom variants (JSON)
             <span class="help-tip" data-tip="직접 변형 JSON을 입력합니다. 형식 오류 시 변형이 무시되거나 실패할 수 있습니다.">?</span>
-            <textarea id="exploreCustomJson" placeholder='[{"label":"custom-1","body":{"field":"bad"}},{"label":"q1","query":[{"key":"id","value":""}]}]'></textarea>
+            <textarea id="exploreCustomJson" placeholder='[{"label":"custom-1","body":{"field":"bad"}}&#10;,{"label":"q1","query":[{"key":"id","value":""}]}]'></textarea>
           </label>
           </div>
           <div class="wide selector">
