@@ -396,8 +396,15 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     const baseUrl = buildUrlWithQuery(urlRaw, queryParams);
     const baseBody = bodyInfo?.raw || "";
 
-    const runOnce = async (variantLabel, url, bodyJson) => {
-      const requestBody = bodyJson ? JSON.stringify(bodyJson) : bodyInfo?.json ? JSON.stringify(bodyInfo.json) : baseBody;
+    const runOnce = async (variantLabel, url, bodyJson, methodOverride, dropBody = false) => {
+      const methodToUse = methodOverride || method;
+      const requestBody = dropBody
+        ? ""
+        : bodyJson
+          ? JSON.stringify(bodyJson)
+          : bodyInfo?.json
+            ? JSON.stringify(bodyInfo.json)
+            : baseBody;
       const headersFinal = requestBody
         ? { "Content-Type": "application/json", ...headersWithAuth }
         : headersWithAuth;
@@ -407,7 +414,7 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
       let error = null;
       try {
         const res = await ctx.fetch(url, {
-          method,
+          method: methodToUse,
           headers: headersFinal,
           data: requestBody || undefined
         });
@@ -421,7 +428,7 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
       results.push({
         name: item.name || "Request",
         variant: variantLabel,
-        method,
+        method: methodToUse,
         url,
         status,
         durationMs,
@@ -435,7 +442,7 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
           body: responseText
         }
       });
-      emitLog(`[explore] ${method} ${url} => ${status || "ERR"} ${variantLabel}`);
+      emitLog(`[explore] ${methodToUse} ${url} => ${status || "ERR"} ${variantLabel}`);
     };
 
     await runOnce("base", baseUrl, null);
@@ -446,6 +453,21 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
       } else if (variant.body) {
         await runOnce(variant.label, baseUrl, variant.body);
       }
+      if (delayMs > 0) await sleep(delayMs);
+    }
+
+    const methodVariants = [];
+    if (method === "GET" || method === "HEAD") {
+      methodVariants.push({ method: "POST", label: `method:${method}->POST`, dropBody: true });
+    } else if ([ "POST", "PUT", "PATCH" ].includes(method)) {
+      methodVariants.push({ method: "GET", label: `method:${method}->GET`, dropBody: true });
+      methodVariants.push({ method: "DELETE", label: `method:${method}->DELETE`, dropBody: true });
+    } else if (method === "DELETE") {
+      methodVariants.push({ method: "GET", label: `method:${method}->GET`, dropBody: true });
+    }
+
+    for (const mv of methodVariants) {
+      await runOnce(mv.label, baseUrl, null, mv.method, mv.dropBody);
       if (delayMs > 0) await sleep(delayMs);
     }
   }

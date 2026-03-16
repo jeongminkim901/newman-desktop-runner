@@ -4,6 +4,7 @@ const collectionInput = el("collectionFile");
 const environmentInput = el("environmentFile");
 const ipInput = el("ip");
 const tokenInput = el("token");
+const clearSavedBtn = el("clearSavedBtn");
 const extraVarsInput = el("extraVars");
 const invalidVarsInput = el("invalidVars");
 const collectionSearch = el("collectionSearch");
@@ -63,6 +64,31 @@ const summaryGroups = el("summaryGroups");
 const failureList = el("failureList");
 let collectionCache = null;
 let selection = new Set();
+
+const AUTH_KEYS = {
+  ip: "saved_ip",
+  token: "saved_token"
+};
+
+function loadSavedAuth() {
+  try {
+    const savedIp = localStorage.getItem(AUTH_KEYS.ip);
+    const savedToken = localStorage.getItem(AUTH_KEYS.token);
+    if (savedIp && ipInput) ipInput.value = savedIp;
+    if (savedToken && tokenInput) tokenInput.value = savedToken;
+  } catch {
+    // ignore localStorage errors
+  }
+}
+
+function saveAuth() {
+  try {
+    if (ipInput) localStorage.setItem(AUTH_KEYS.ip, ipInput.value || "");
+    if (tokenInput) localStorage.setItem(AUTH_KEYS.token, tokenInput.value || "");
+  } catch {
+    // ignore localStorage errors
+  }
+}
 
 function selectedRequestNames() {
   return Array.from(selection);
@@ -172,6 +198,21 @@ selectNoneBtn.addEventListener("click", () => {
   selection = new Set();
   renderCollectionTree();
 });
+if (ipInput) ipInput.addEventListener("input", saveAuth);
+if (tokenInput) tokenInput.addEventListener("input", saveAuth);
+if (clearSavedBtn) {
+  clearSavedBtn.addEventListener("click", () => {
+    try {
+      localStorage.removeItem(AUTH_KEYS.ip);
+      localStorage.removeItem(AUTH_KEYS.token);
+    } catch {
+      // ignore localStorage errors
+    }
+    if (ipInput) ipInput.value = "";
+    if (tokenInput) tokenInput.value = "";
+    statusLine.textContent = "Saved IP/Token cleared.";
+  });
+}
 let historyCache = [];
 let historyFilter = "all";
 let lastPreviewJsonPath = "";
@@ -212,6 +253,8 @@ function appendLog(line) {
 
 window.api.onRunLog((msg) => appendLog(msg));
 window.api.onOpenHelp(() => openHelpModal());
+
+loadSavedAuth();
 
 async function refreshHistory() {
   const history = await window.api.getHistory();
