@@ -148,6 +148,18 @@
               <span class="help-tip" data-tip="사설 인증서/내부망 HTTPS 오류 해결용입니다. MITM 위험이 있어 운영환경 비권장.">?</span>
             </label>
           </div>
+          <div class="row">
+            <label>
+              Explore include filter (optional)
+              <span class="help-tip" data-tip="특정 폴더/요청만 탐색합니다. 쉼표/줄바꿈으로 여러 개 입력. 예: Login, /Admin/">?</span>
+              <input id="exploreInclude" type="text" placeholder="Login, /Admin/" />
+            </label>
+            <label>
+              Explore exclude filter (optional)
+              <span class="help-tip" data-tip="특정 폴더/요청을 탐색에서 제외합니다. 쉼표/줄바꿈으로 여러 개 입력.">?</span>
+              <input id="exploreExclude" type="text" placeholder="HealthCheck, /Auth/" />
+            </label>
+          </div>
           <label class="wide">
             Custom variants (JSON)
             <span class="help-tip" data-tip="직접 변형 JSON을 입력합니다. 형식 오류 시 변형이 무시되거나 실패할 수 있습니다.">?</span>

@@ -312,7 +312,9 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     exploreCustomJson,
     ignoreTls,
     failedOnly,
-    failedRequestNames
+    failedRequestNames,
+    exploreInclude,
+    exploreExclude
   } = payload;
 
   if (!collectionPath) return { ok: false, error: "Collection file is required." };
@@ -343,15 +345,37 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     if (!items.length) return { ok: false, error: "No selected requests found." };
   }
 
-  const flattenItems = (arr, out = []) => {
+  const flattenItems = (arr, out = [], prefix = "") => {
     arr.forEach((it) => {
-      if (Array.isArray(it.item)) flattenItems(it.item, out);
-      else out.push(it);
+      if (Array.isArray(it.item)) {
+        const nextPrefix = it.name ? `${prefix}${it.name}/` : prefix;
+        flattenItems(it.item, out, nextPrefix);
+      } else {
+        const name = it?.name || "Request";
+        const fullName = prefix ? `${prefix}${name}` : name;
+        out.push({ ...it, _fullName: fullName });
+      }
     });
     return out;
   };
 
   const requests = flattenItems(items);
+  const parseFilter = (value) =>
+    String(value || "")
+      .split(/[\n,]/)
+      .map((v) => v.trim())
+      .filter(Boolean);
+  const includeFilters = parseFilter(exploreInclude);
+  const excludeFilters = parseFilter(exploreExclude);
+  const matchAny = (name, filters) =>
+    filters.some((f) => name.toLowerCase().includes(f.toLowerCase()));
+  const filteredRequests = requests.filter((req) => {
+    const name = req._fullName || req.name || "";
+    if (includeFilters.length && !matchAny(name, includeFilters)) return false;
+    if (excludeFilters.length && matchAny(name, excludeFilters)) return false;
+    return true;
+  });
+  if (!filteredRequests.length) return { ok: false, error: "No requests match explore filters." };
   const runId = `run_${Date.now()}_explore`;
   const reportJson = path.join(outputDir, `${runId}.json`);
   const logPath = path.join(outputDir, `${runId}.log.txt`);
@@ -381,7 +405,7 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
   const ctx = await pwRequest.newContext({ ignoreHTTPSErrors: !!ignoreTls });
   emitLog("[explore] starting exploratory api test...");
 
-  for (const item of requests) {
+  for (const item of filteredRequests) {
     const method = (item?.request?.method || "GET").toUpperCase();
     const headers = normalizeHeaderArray(item?.request?.header, varsMap);
     const headersWithAuth = ensureAuthHeader(headers, token);
@@ -425,9 +449,11 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
       }
       const durationMs = Date.now() - started;
       if (error || status >= 400) failed += 1;
+      const isMethodVariant = String(variantLabel || "").startsWith("method:");
       results.push({
         name: item.name || "Request",
         variant: variantLabel,
+        isMethodVariant,
         method: methodToUse,
         url,
         status,
@@ -493,9 +519,12 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
   fs.writeFileSync(reportJson, JSON.stringify(report, null, 2), "utf-8");
   const reportHtml = path.join(outputDir, `${runId}.html`);
   const rows = results
-    .map((r) => `<tr><td>${r.name}</td><td>${r.variant}</td><td>${r.method}</td><td>${r.status || ""}</td><td>${r.durationMs}</td><td>${r.error || ""}</td></tr>`)
+    .map((r) => {
+      const tag = r.isMethodVariant ? ' <span class="tag">Method</span>' : "";
+      return `<tr><td>${r.name}</td><td>${r.variant}${tag}</td><td>${r.method}</td><td>${r.status || ""}</td><td>${r.durationMs}</td><td>${r.error || ""}</td></tr>`;
+    })
     .join("");
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Exploratory Report</title><style>body{font-family:Segoe UI,Arial,sans-serif;padding:16px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:6px;font-size:12px}th{background:#f3f4f6;text-align:left}</style></head><body><h2>Exploratory Report</h2><p>Total: ${summary.total} · Failed: ${summary.failed}</p><table><thead><tr><th>Name</th><th>Variant</th><th>Method</th><th>Status</th><th>Ms</th><th>Error</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Exploratory Report</title><style>body{font-family:Segoe UI,Arial,sans-serif;padding:16px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:6px;font-size:12px}th{background:#f3f4f6;text-align:left}.tag{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:999px;background:#e0f2fe;color:#075985;font-size:10px;font-weight:600}</style></head><body><h2>Exploratory Report</h2><p>Total: ${summary.total} ? Failed: ${summary.failed}</p><table><thead><tr><th>Name</th><th>Variant</th><th>Method</th><th>Status</th><th>Ms</th><th>Error</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
   fs.writeFileSync(reportHtml, html, "utf-8");
 
   const history = readHistory();

@@ -27,6 +27,8 @@ const exploreCustomJson = el("exploreCustomJson");
 const exploreFailedOnly = el("exploreFailedOnly");
 const exploreTemplate = el("exploreTemplate");
 const exploreIgnoreTls = el("exploreIgnoreTls");
+const exploreInclude = el("exploreInclude");
+const exploreExclude = el("exploreExclude");
 const repCli = el("repCli");
 const repHtml = el("repHtml");
 const repJson = el("repJson");
@@ -677,6 +679,8 @@ runBtn.addEventListener("click", async () => {
     ignoreTls: !!exploreIgnoreTls?.checked,
     failedOnly: !!exploreFailedOnly?.checked,
     failedRequestNames,
+    exploreInclude: exploreInclude?.value?.trim(),
+    exploreExclude: exploreExclude?.value?.trim(),
     reporters,
     iterationCount: Number(iterationInput.value || 1),
     timeoutRequest: Number(timeoutInput.value || 300000),
