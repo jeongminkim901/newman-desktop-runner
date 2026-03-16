@@ -143,6 +143,11 @@
               <span class="help-tip" data-tip="직전 JSON Preview의 실패 요청만 재탐색합니다.">?</span>
             </label>
             <label class="toggle">
+              <input id="exploreMethodVariants" type="checkbox" checked />
+              Include method variants
+              <span class="help-tip" data-tip="HTTP 메서드 변형(GET↔POST/DELETE 등)을 추가로 수행합니다. 꺼두면 원래 메서드만 사용합니다.">?</span>
+            </label>
+            <label class="toggle">
               <input id="exploreIgnoreTls" type="checkbox" />
               SSL 검증 무시 (개발/내부망용)
               <span class="help-tip" data-tip="사설 인증서/내부망 HTTPS 오류 해결용입니다. MITM 위험이 있어 운영환경 비권장.">?</span>

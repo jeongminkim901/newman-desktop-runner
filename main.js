@@ -314,7 +314,8 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     failedOnly,
     failedRequestNames,
     exploreInclude,
-    exploreExclude
+    exploreExclude,
+    methodVariants
   } = payload;
 
   if (!collectionPath) return { ok: false, error: "Collection file is required." };
@@ -367,6 +368,7 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
       .filter(Boolean);
   const includeFilters = parseFilter(exploreInclude);
   const excludeFilters = parseFilter(exploreExclude);
+  const allowMethodVariants = methodVariants !== false;
   const matchAny = (name, filters) =>
     filters.some((f) => name.toLowerCase().includes(f.toLowerCase()));
   const filteredRequests = requests.filter((req) => {
@@ -482,19 +484,21 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
       if (delayMs > 0) await sleep(delayMs);
     }
 
-    const methodVariants = [];
-    if (method === "GET" || method === "HEAD") {
-      methodVariants.push({ method: "POST", label: `method:${method}->POST`, dropBody: true });
-    } else if ([ "POST", "PUT", "PATCH" ].includes(method)) {
-      methodVariants.push({ method: "GET", label: `method:${method}->GET`, dropBody: true });
-      methodVariants.push({ method: "DELETE", label: `method:${method}->DELETE`, dropBody: true });
-    } else if (method === "DELETE") {
-      methodVariants.push({ method: "GET", label: `method:${method}->GET`, dropBody: true });
-    }
+    if (allowMethodVariants) {
+      const methodVariants = [];
+      if (method === "GET" || method === "HEAD") {
+        methodVariants.push({ method: "POST", label: `method:${method}->POST`, dropBody: true });
+      } else if ([ "POST", "PUT", "PATCH" ].includes(method)) {
+        methodVariants.push({ method: "GET", label: `method:${method}->GET`, dropBody: true });
+        methodVariants.push({ method: "DELETE", label: `method:${method}->DELETE`, dropBody: true });
+      } else if (method === "DELETE") {
+        methodVariants.push({ method: "GET", label: `method:${method}->GET`, dropBody: true });
+      }
 
-    for (const mv of methodVariants) {
-      await runOnce(mv.label, baseUrl, null, mv.method, mv.dropBody);
-      if (delayMs > 0) await sleep(delayMs);
+      for (const mv of methodVariants) {
+        await runOnce(mv.label, baseUrl, null, mv.method, mv.dropBody);
+        if (delayMs > 0) await sleep(delayMs);
+      }
     }
   }
 

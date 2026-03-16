@@ -26,6 +26,7 @@ const exploreRuleMode = el("exploreRuleMode");
 const exploreCustomJson = el("exploreCustomJson");
 const exploreFailedOnly = el("exploreFailedOnly");
 const exploreTemplate = el("exploreTemplate");
+const exploreMethodVariants = el("exploreMethodVariants");
 const exploreIgnoreTls = el("exploreIgnoreTls");
 const exploreInclude = el("exploreInclude");
 const exploreExclude = el("exploreExclude");
@@ -678,6 +679,7 @@ runBtn.addEventListener("click", async () => {
     exploreCustomJson: exploreCustomJson?.value?.trim(),
     ignoreTls: !!exploreIgnoreTls?.checked,
     failedOnly: !!exploreFailedOnly?.checked,
+    methodVariants: !!exploreMethodVariants?.checked,
     failedRequestNames,
     exploreInclude: exploreInclude?.value?.trim(),
     exploreExclude: exploreExclude?.value?.trim(),
