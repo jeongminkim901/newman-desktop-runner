@@ -22,7 +22,9 @@
   },
   "dependencies": {
     "electron-updater": "^6.3.0",
+    "js-yaml": "^4.1.0",
     "newman": "^6.2.1",
+    "openapi-to-postmanv2": "^5.0.0",
     "playwright": "^1.49.0"
   },
   "build": {

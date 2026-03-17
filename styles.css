@@ -146,6 +146,10 @@ textarea {
   gap: 10px;
 }
 
+.row.wrap {
+  flex-wrap: wrap;
+}
+
 .selector {
   display: flex;
   flex-direction: column;

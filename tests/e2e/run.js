@@ -9,12 +9,12 @@ async function run() {
   const page = await browser.newPage();
   await page.goto(fileUrl);
 
-  const runBtn = page.getByRole("button", { name: "Run Newman" });
-  const historyTitle = page.getByRole("heading", { name: "History" });
-  const exploreToggle = page.getByText("Exploratory API test (Playwright)");
-  const ruleMode = page.getByLabel("Rule mode");
-  const failedOnly = page.getByText("Re-explore failed only (from last JSON preview)");
-  const helpTab = page.getByRole("button", { name: "HELP" });
+  const runBtn = page.getByRole("button", { name: "실행" });
+  const historyTitle = page.getByRole("heading", { name: "실행 이력" });
+  const exploreToggle = page.getByText("탐색적 API 테스트 (Playwright)");
+  const ruleMode = page.getByLabel("규칙 모드");
+  const failedOnly = page.getByText("실패만 재탐색 (마지막 JSON 기준)");
+  const helpTab = page.getByRole("button", { name: "도움말" });
 
   await runBtn.waitFor({ state: "visible", timeout: 5000 });
   await historyTitle.waitFor({ state: "visible", timeout: 5000 });

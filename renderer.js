@@ -1,6 +1,9 @@
 ﻿const el = (id) => document.getElementById(id);
 
 const collectionInput = el("collectionFile");
+const openapiFileInput = el("openapiFile");
+const openapiUrlInput = el("openapiUrl");
+const loadOpenapiBtn = el("loadOpenapiBtn");
 const environmentInput = el("environmentFile");
 const ipInput = el("ip");
 const tokenInput = el("token");
@@ -183,11 +186,35 @@ collectionInput.addEventListener("change", () => {
       selection = new Set(flattenRequests(collectionCache.item || []));
       renderCollectionTree();
     } catch {
-      collectionTree.innerHTML = "Failed to parse collection JSON.";
+      collectionTree.innerHTML = "컬렉션 JSON 파싱 실패";
     }
   };
   reader.readAsText(file);
 });
+
+if (loadOpenapiBtn) {
+  loadOpenapiBtn.addEventListener("click", async () => {
+    const file = openapiFileInput?.files?.[0];
+    const openapiUrl = openapiUrlInput?.value?.trim();
+    if (!file && !openapiUrl) {
+      statusLine.textContent = "OpenAPI 파일 또는 URL을 입력하세요.";
+      return;
+    }
+    statusLine.textContent = "OpenAPI 불러오는 중...";
+    const res = await window.api.loadOpenApi({
+      openapiPath: file?.path,
+      openapiUrl
+    });
+    if (res?.ok && res.collection) {
+      collectionCache = res.collection;
+      selection = new Set(flattenRequests(collectionCache.item || []));
+      renderCollectionTree();
+      statusLine.textContent = "OpenAPI 로드 완료";
+    } else {
+      statusLine.textContent = `OpenAPI 로드 실패: ${res?.error || "알 수 없음"}`;
+    }
+  });
+}
 
 collectionSearch.addEventListener("input", renderCollectionTree);
 
@@ -213,7 +240,7 @@ if (clearSavedBtn) {
     }
     if (ipInput) ipInput.value = "";
     if (tokenInput) tokenInput.value = "";
-    statusLine.textContent = "Saved IP/Token cleared.";
+    statusLine.textContent = "저장값을 지웠습니다.";
   });
 }
 let historyCache = [];
@@ -316,15 +343,15 @@ function renderHistory() {
     const links = document.createElement("div");
     links.className = "links";
     if (item.reportHtml) {
-      links.innerHTML += `<button data-path="${item.reportHtml}">Open HTML</button>`;
-      links.innerHTML += `<button data-preview-html="${item.reportHtml}">Preview HTML</button>`;
+      links.innerHTML += `<button data-path="${item.reportHtml}">HTML 열기</button>`;
+      links.innerHTML += `<button data-preview-html="${item.reportHtml}">HTML 미리보기</button>`;
     }
     if (item.reportJson) {
-      links.innerHTML += `<button data-path="${item.reportJson}">Open JSON</button>`;
-      links.innerHTML += `<button data-preview-json="${item.reportJson}">Preview JSON</button>`;
+      links.innerHTML += `<button data-path="${item.reportJson}">JSON 열기</button>`;
+      links.innerHTML += `<button data-preview-json="${item.reportJson}">JSON 미리보기</button>`;
     }
     if (item.logPath) {
-      links.innerHTML += `<button data-path="${item.logPath}">Open Log</button>`;
+      links.innerHTML += `<button data-path="${item.logPath}">로그 열기</button>`;
     }
 
     links.querySelectorAll("button").forEach((btn) => {
@@ -401,8 +428,8 @@ async function loadHtmlPreview(htmlPath) {
     htmlPreview.srcdoc = text;
     htmlSoloPreview.srcdoc = text;
   } catch (e) {
-    htmlPreview.srcdoc = `<pre>Failed to load HTML: ${e.message}</pre>`;
-    htmlSoloPreview.srcdoc = `<pre>Failed to load HTML: ${e.message}</pre>`;
+    htmlPreview.srcdoc = `<pre>HTML 로드 실패: ${e.message}</pre>`;
+    htmlSoloPreview.srcdoc = `<pre>HTML 로드 실패: ${e.message}</pre>`;
   }
 }
 
@@ -425,8 +452,8 @@ async function showJsonPreview(jsonPath, htmlPath) {
     jsonSoloPreview.textContent = text;
     loadJsonSummary(jsonPath, text);
   } catch (e) {
-    jsonPreview.textContent = `Failed to load JSON: ${e.message}`;
-    jsonSoloPreview.textContent = `Failed to load JSON: ${e.message}`;
+    jsonPreview.textContent = `JSON 로드 실패: ${e.message}`;
+    jsonSoloPreview.textContent = `JSON 로드 실패: ${e.message}`;
   }
   if (htmlPath) {
     await loadHtmlPreview(htmlPath);
@@ -473,7 +500,7 @@ async function loadJsonSummary(jsonPath, cachedText) {
         else if (code >= 500 && code < 600) groups["5"] += 1;
       });
 
-      previewSummary.textContent = `Exploratory: ${results.length} · Failed: ${failed.length}`;
+      previewSummary.textContent = `탐색 실행: ${results.length} · 실패: ${failed.length}`;
       summaryTotal.textContent = String(results.length);
       summaryFailed.textContent = String(failed.length);
       summaryAvg.textContent = String(avg);
@@ -488,7 +515,7 @@ async function loadJsonSummary(jsonPath, cachedText) {
       const hasAssertionError = assertions.some((a) => a.error);
       return hasAssertionError || ex.error;
     });
-    previewSummary.textContent = `Executions: ${executions.length} · Failed: ${failed.length}`;
+    previewSummary.textContent = `실행: ${executions.length} · 실패: ${failed.length}`;
 
     const times = executions.map((ex) => ex.response?.responseTime || 0);
     const avg = times.length ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : 0;
@@ -508,7 +535,7 @@ async function loadJsonSummary(jsonPath, cachedText) {
 
     renderFailureList(failed, showReqRes.checked);
   } catch (e) {
-    previewSummary.textContent = `Failed to parse JSON: ${e.message}`;
+    previewSummary.textContent = `JSON 파싱 실패: ${e.message}`;
   }
 }
 
@@ -516,7 +543,7 @@ function renderFailureList(failed, showDetails) {
   failureList.innerHTML = "";
   if (!failed.length) {
     const li = document.createElement("li");
-    li.textContent = "No failures.";
+    li.textContent = "실패 없음.";
     failureList.appendChild(li);
     return;
   }
@@ -526,7 +553,7 @@ function renderFailureList(failed, showDetails) {
     const method = ex?.item?.request?.method || "-";
     const url = ex?.item?.request?.url?.raw || ex?.item?.request?.url || "-";
     const status = ex?.response?.code || "-";
-    const err = ex?.error?.message || (ex?.assertions || []).find((a) => a.error)?.error?.message || "Assertion failed";
+    const err = ex?.error?.message || (ex?.assertions || []).find((a) => a.error)?.error?.message || "검증 실패";
     const req = ex?.request || ex?.item?.request;
     const res = ex?.response;
     const reqJson = req ? JSON.stringify(req, null, 2) : "";
@@ -549,7 +576,7 @@ function renderFailureList(failed, showDetails) {
         <div class="url">${url}</div>
         <div>${err}</div>
       </div>
-      ${showDetails ? `<pre class="reqres">Request\n${reqJson}</pre><pre class="reqres">Response\n${resJson}</pre>` : ""}
+      ${showDetails ? `<pre class="reqres">요청\n${reqJson}</pre><pre class="reqres">응답\n${resJson}</pre>` : ""}
     `;
     failureList.appendChild(li);
   });
@@ -559,7 +586,7 @@ function renderExploreFailureList(failed, showDetails) {
   failureList.innerHTML = "";
   if (!failed.length) {
     const li = document.createElement("li");
-    li.textContent = "No failures.";
+    li.textContent = "실패 없음.";
     failureList.appendChild(li);
     return;
   }
@@ -577,7 +604,7 @@ function renderExploreFailureList(failed, showDetails) {
         <div class="url">${item.url || ""}</div>
         <div>${item.variant || ""} ${err ? "· " + err : ""}</div>
       </div>
-      ${showDetails ? `<pre class="reqres">Request\n${item.request?.body || ""}</pre><pre class="reqres">Response\n${item.response?.body || ""}</pre>` : ""}
+      ${showDetails ? `<pre class="reqres">요청\n${item.request?.body || ""}</pre><pre class="reqres">응답\n${item.response?.body || ""}</pre>` : ""}
     `;
     failureList.appendChild(li);
   });
@@ -635,7 +662,7 @@ window.addEventListener("mousemove", (e) => {
 
 runBtn.addEventListener("click", async () => {
   logBox.innerHTML = "";
-  statusLine.textContent = "Running...";
+  statusLine.textContent = "실행 중...";
 
   const reporters = [];
   if (repCli.checked) reporters.push("cli");
@@ -645,7 +672,7 @@ runBtn.addEventListener("click", async () => {
   let failedRequestNames = [];
   if (exploreEnabled?.checked && exploreFailedOnly?.checked) {
     if (!lastPreviewJsonPath) {
-      statusLine.textContent = "Preview a JSON report first to re-explore failed requests.";
+      statusLine.textContent = "실패만 재탐색하려면 먼저 JSON 미리보기를 열어주세요.";
       return;
     }
     try {
@@ -653,17 +680,19 @@ runBtn.addEventListener("click", async () => {
       const text = await res.text();
       failedRequestNames = extractFailedNamesFromJson(text);
       if (!failedRequestNames.length) {
-        statusLine.textContent = "No failed requests found in last JSON preview.";
+        statusLine.textContent = "마지막 JSON 미리보기에 실패 요청이 없습니다.";
         return;
       }
     } catch (e) {
-      statusLine.textContent = `Failed to read JSON preview: ${e.message}`;
+    statusLine.textContent = `JSON 미리보기 읽기 실패: ${e.message}`;
       return;
     }
   }
 
   const payload = {
     collectionPath: collectionInput.files[0]?.path,
+    openapiPath: openapiFileInput?.files?.[0]?.path,
+    openapiUrl: openapiUrlInput?.value?.trim(),
     environmentPath: environmentInput.files[0]?.path,
     ip: ipInput.value.trim(),
     token: tokenInput.value.trim(),
@@ -690,12 +719,16 @@ runBtn.addEventListener("click", async () => {
     bail: bailInput.checked
   };
 
+  if (!payload.collectionPath && !payload.openapiPath && !payload.openapiUrl) {
+    statusLine.textContent = "컬렉션 또는 OpenAPI가 필요합니다.";
+    return;
+  }
   if (!payload.outputDir) {
-    statusLine.textContent = "Output directory is required.";
+    statusLine.textContent = "출력 폴더가 필요합니다.";
     return;
   }
   if (!payload.reporters.length && !exploreEnabled?.checked) {
-    statusLine.textContent = "Select at least one reporter.";
+    statusLine.textContent = "리포터를 최소 1개 선택하세요.";
     return;
   }
 
@@ -704,15 +737,15 @@ runBtn.addEventListener("click", async () => {
     : await window.api.runNewman(payload);
   if (res.ok) {
     if (exploreEnabled?.checked) {
-      statusLine.textContent = `Exploratory done. JSON: ${res.reportJson}`;
+    statusLine.textContent = `탐색 완료. JSON: ${res.reportJson}`;
     } else {
-      statusLine.textContent = `Done. JSON: ${res.reportJson} · HTML: ${res.reportHtml}`;
+      statusLine.textContent = `완료. JSON: ${res.reportJson} · HTML: ${res.reportHtml}`;
     }
     if (res.reportJson) {
       showJsonPreview(res.reportJson, res.reportHtml);
     }
   } else {
-    statusLine.textContent = `Failed: ${res.error}`;
+    statusLine.textContent = `실패: ${res.error}`;
   }
 
   await refreshHistory();

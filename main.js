@@ -1,8 +1,12 @@
 const { app, BrowserWindow, dialog, ipcMain, Menu } = require("electron");
 const path = require("path");
 const fs = require("fs");
+const http = require("http");
+const https = require("https");
 const newman = require("newman");
 const { request: pwRequest } = require("playwright");
+const openapiToPostman = require("openapi-to-postmanv2");
+const yaml = require("js-yaml");
 const {
   parseVarsJson,
   normalizeCollection,
@@ -104,6 +108,15 @@ function writeHistory(entries) {
 
 ipcMain.handle("get-history", () => readHistory());
 
+ipcMain.handle("load-openapi", async (_event, payload) => {
+  try {
+    const collection = await loadOpenApiCollection(payload || {});
+    return { ok: true, collection };
+  } catch (e) {
+    return { ok: false, error: e.message || String(e) };
+  }
+});
+
 function readEnvVars(environmentPath) {
   if (!environmentPath) return [];
   try {
@@ -118,9 +131,116 @@ function readEnvVars(environmentPath) {
   }
 }
 
+function fetchUrl(url) {
+  return new Promise((resolve, reject) => {
+    const client = url.startsWith("https://") ? https : http;
+    client
+      .get(url, (res) => {
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          return fetchUrl(res.headers.location).then(resolve).catch(reject);
+        }
+        if (res.statusCode >= 400) {
+          return reject(new Error(`HTTP ${res.statusCode}`));
+        }
+        res.setEncoding("utf8");
+        let data = "";
+        res.on("data", (chunk) => {
+          data += chunk;
+        });
+        res.on("end", () => resolve(data));
+      })
+      .on("error", reject);
+  });
+}
+
+function parseOpenApi(raw, sourceName = "openapi") {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    try {
+      return yaml.load(raw);
+    } catch (e) {
+      throw new Error(`${sourceName} 파싱 실패: ${e.message}`);
+    }
+  }
+}
+
+function convertOpenApiToCollection(openapiObj) {
+  return new Promise((resolve, reject) => {
+    openapiToPostman.convertV2(
+      { type: "json", data: openapiObj },
+      { folderStrategy: "Tags" },
+      (err, result) => {
+        if (err) return reject(err);
+        if (!result || !result.result || !result.output || !result.output.length) {
+          return reject(new Error("OpenAPI 변환 실패"));
+        }
+        resolve(result.output[0].data);
+      }
+    );
+  });
+}
+
+async function loadOpenApiCollection({ openapiPath, openapiUrl }) {
+  let raw;
+  if (openapiUrl) {
+    raw = await fetchUrl(openapiUrl);
+  } else if (openapiPath) {
+    raw = fs.readFileSync(openapiPath, "utf-8");
+  } else {
+    throw new Error("OpenAPI 파일 또는 URL이 필요합니다.");
+  }
+  const openapiObj = parseOpenApi(raw, "OpenAPI");
+  const collectionObj = await convertOpenApiToCollection(openapiObj);
+  const normalized = normalizeCollection(collectionObj);
+  if (!normalized) throw new Error("OpenAPI 변환 결과가 유효하지 않습니다.");
+  return normalized;
+}
+
+async function loadCollectionObject({
+  collectionPath,
+  openapiPath,
+  openapiUrl,
+  useSelectedRequests,
+  selectedRequestNames,
+  failedOnly,
+  failedRequestNames
+}) {
+  let collectionObj;
+  if (openapiPath || openapiUrl) {
+    collectionObj = await loadOpenApiCollection({ openapiPath, openapiUrl });
+  } else if (collectionPath) {
+    const raw = fs.readFileSync(collectionPath, "utf-8");
+    const obj = normalizeCollection(JSON.parse(raw));
+    if (!obj) throw new Error("컬렉션 JSON이 유효하지 않습니다.");
+    collectionObj = obj;
+  } else {
+    throw new Error("컬렉션 또는 OpenAPI가 필요합니다.");
+  }
+
+  if (failedOnly && Array.isArray(failedRequestNames) && failedRequestNames.length) {
+    const nameSet = new Set(failedRequestNames);
+    const filtered = filterItemsByName(collectionObj.item || [], nameSet);
+    if (!filtered.length) throw new Error("컬렉션에서 실패 요청을 찾지 못했습니다.");
+    return { ...collectionObj, item: filtered };
+  }
+
+  if (useSelectedRequests && Array.isArray(selectedRequestNames)) {
+    const nameSet = new Set(selectedRequestNames);
+    if (nameSet.size === 0) throw new Error("선택된 요청이 없습니다.");
+    const filtered = filterItemsByName(collectionObj.item || [], nameSet);
+    if (!filtered.length) throw new Error("선택된 요청을 찾지 못했습니다.");
+    return { ...collectionObj, item: filtered };
+  }
+
+  return collectionObj;
+}
+
 ipcMain.handle("run-newman", async (_event, payload) => {
   const {
     collectionPath,
+    openapiPath,
+    openapiUrl,
     environmentPath,
     ip,
     token,
@@ -137,11 +257,11 @@ ipcMain.handle("run-newman", async (_event, payload) => {
     bail
   } = payload;
 
-  if (!collectionPath) {
-    return { ok: false, error: "Collection file is required." };
+  if (!collectionPath && !openapiPath && !openapiUrl) {
+    return { ok: false, error: "컬렉션 또는 OpenAPI가 필요합니다." };
   }
   if (!reporters || !reporters.length) {
-    return { ok: false, error: "Select at least one reporter." };
+    return { ok: false, error: "리포터를 최소 1개 선택하세요." };
   }
 
   const envVars = [];
@@ -170,20 +290,18 @@ ipcMain.handle("run-newman", async (_event, payload) => {
 
   const invalidOverrides = invalidVarsJson ? parseVarsJson(invalidVarsJson) : [];
 
-  const resolveCollection = () => {
-    if (useSelectedRequests && Array.isArray(selectedRequestNames)) {
-      const raw = fs.readFileSync(collectionPath, "utf-8");
-      const obj = normalizeCollection(JSON.parse(raw));
-      if (!obj) throw new Error("Collection file JSON is invalid.");
-      const nameSet = new Set(selectedRequestNames);
-      if (nameSet.size === 0) throw new Error("No requests selected.");
-      const filtered = filterItemsByName(obj.item || [], nameSet);
-      if (!filtered.length) throw new Error("No selected requests found.");
-      return { ...obj, item: filtered };
-    }
-
-    return collectionPath;
-  };
+  let baseCollection;
+  try {
+    baseCollection = await loadCollectionObject({
+      collectionPath,
+      openapiPath,
+      openapiUrl,
+      useSelectedRequests,
+      selectedRequestNames
+    });
+  } catch (e) {
+    return { ok: false, error: e.message || String(e) };
+  }
 
   const runOnce = (label, overrides) => {
     const runId = `run_${Date.now()}_${label}`;
@@ -205,11 +323,9 @@ ipcMain.handle("run-newman", async (_event, payload) => {
     });
 
     return new Promise((resolve) => {
-      const collectionSource = resolveCollection();
-
       newman.run(
         {
-          collection: collectionSource,
+          collection: baseCollection,
           environment: environmentPath || undefined,
           reporters,
           reporter: {
@@ -299,6 +415,8 @@ ipcMain.handle("run-newman", async (_event, payload) => {
 ipcMain.handle("run-exploratory", async (_event, payload) => {
   const {
     collectionPath,
+    openapiPath,
+    openapiUrl,
     environmentPath,
     ip,
     token,
@@ -318,8 +436,10 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     methodVariants
   } = payload;
 
-  if (!collectionPath) return { ok: false, error: "Collection file is required." };
-  if (!outputDir) return { ok: false, error: "Output directory is required." };
+  if (!collectionPath && !openapiPath && !openapiUrl) {
+    return { ok: false, error: "컬렉션 또는 OpenAPI가 필요합니다." };
+  }
+  if (!outputDir) return { ok: false, error: "출력 폴더가 필요합니다." };
 
   const envVars = readEnvVars(environmentPath);
   const extraVars = extraVarsJson ? parseVarsJson(extraVarsJson) : [];
@@ -327,24 +447,20 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
 
   let collectionObj;
   try {
-    const raw = fs.readFileSync(collectionPath, "utf-8");
-    collectionObj = normalizeCollection(JSON.parse(raw));
-    if (!collectionObj) throw new Error("Collection file JSON is invalid.");
+    collectionObj = await loadCollectionObject({
+      collectionPath,
+      openapiPath,
+      openapiUrl,
+      useSelectedRequests,
+      selectedRequestNames,
+      failedOnly,
+      failedRequestNames
+    });
   } catch (e) {
     return { ok: false, error: e.message || String(e) };
   }
 
   let items = collectionObj.item || [];
-  if (failedOnly && Array.isArray(failedRequestNames) && failedRequestNames.length) {
-    const nameSet = new Set(failedRequestNames);
-    items = filterItemsByName(items, nameSet);
-    if (!items.length) return { ok: false, error: "No failed requests found in collection." };
-  } else if (useSelectedRequests && Array.isArray(selectedRequestNames)) {
-    const nameSet = new Set(selectedRequestNames);
-    if (!nameSet.size) return { ok: false, error: "No requests selected." };
-    items = filterItemsByName(items, nameSet);
-    if (!items.length) return { ok: false, error: "No selected requests found." };
-  }
 
   const flattenItems = (arr, out = [], prefix = "") => {
     arr.forEach((it) => {
