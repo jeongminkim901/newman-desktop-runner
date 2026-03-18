@@ -79,6 +79,11 @@
             <input id="delayRequest" type="number" min="0" value="0" />
           </label>
           <label class="toggle">
+            <input id="newmanIgnoreTls" type="checkbox" />
+            SSL 검증 무시 (Newman)
+            <span class="help-tip" data-tip="Newman 실행 시 HTTPS 인증서 검증을 건너뜁니다. 사설 인증서/내부망에서만 사용하세요.">?</span>
+          </label>
+          <label class="toggle">
             <input id="bail" type="checkbox" />
             첫 실패 시 중단
             <span class="help-tip" data-tip="실패 발생 시 즉시 중단합니다.">?</span>

@@ -25,6 +25,7 @@ const iterationInput = el("iterationCount");
 const timeoutInput = el("timeoutRequest");
 const delayInput = el("delayRequest");
 const bailInput = el("bail");
+const newmanIgnoreTls = el("newmanIgnoreTls");
 const exploreEnabled = el("exploreEnabled");
 const variantsPerRequest = el("variantsPerRequest");
 const exploreDelayMs = el("exploreDelayMs");
@@ -820,7 +821,8 @@ runBtn.addEventListener("click", async () => {
     iterationCount: Number(iterationInput.value || 1),
     timeoutRequest: Number(timeoutInput.value || 300000),
     delayRequest: Number(delayInput.value || 0),
-    bail: bailInput.checked
+    bail: bailInput.checked,
+    newmanIgnoreTls: !!newmanIgnoreTls?.checked
   };
 
   if (!payload.collectionPath && !payload.openapiPath && !payload.openapiUrl) {

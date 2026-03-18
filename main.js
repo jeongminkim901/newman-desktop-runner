@@ -389,7 +389,8 @@ ipcMain.handle("run-newman", async (_event, payload) => {
     iterationCount,
     timeoutRequest,
     delayRequest,
-    bail
+    bail,
+    newmanIgnoreTls
   } = payload;
 
   if (!collectionPath && !openapiPath && !openapiUrl) {
@@ -472,7 +473,8 @@ ipcMain.handle("run-newman", async (_event, payload) => {
           iterationCount: iterationCount || 1,
           timeoutRequest: timeoutRequest || 300000,
           delayRequest: delayRequest || 0,
-          bail: bail === true
+          bail: bail === true,
+          insecure: !!newmanIgnoreTls
         },
         (err, summary) => {
           logStream.end();
