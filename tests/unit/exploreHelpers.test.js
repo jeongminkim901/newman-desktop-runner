@@ -4,6 +4,7 @@ const {
   ensureAuthHeader,
   buildVariants,
   buildSchemaVariants,
+  buildSecurityVariants,
   validateSchema,
   buildUrlWithQuery
 } = require("../../lib/exploreHelpers");
@@ -69,6 +70,15 @@ describe("exploreHelpers", () => {
     expect(variants.some((v) => v.label.startsWith("schema:maxLength"))).toBe(true);
     expect(variants.some((v) => v.label.startsWith("schema:minimum"))).toBe(true);
     expect(variants.some((v) => v.label.startsWith("schema:maximum"))).toBe(true);
+  });
+
+  test("buildSecurityVariants generates basic security cases", () => {
+    const variants = buildSecurityVariants(
+      { queryParams: [ { key: "q", value: "ok" } ] },
+      2
+    );
+    expect(variants.length).toBe(2);
+    expect(variants[0].label.startsWith("sec:query")).toBe(true);
   });
 
   test("validateSchema detects required/type/enum", () => {

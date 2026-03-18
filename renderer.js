@@ -571,12 +571,14 @@ async function loadJsonSummary(jsonPath, cachedText) {
         else if (code >= 500 && code < 600) groups["5"] += 1;
       });
       const schemaFailCount = data.summary?.schemaFailCount ?? 0;
+      const semanticFailCount = data.summary?.semanticFailCount ?? 0;
+      const securityWarnCount = data.summary?.securityWarnCount ?? 0;
       const variantCountByType = data.summary?.variantCountByType || {};
       const variantLine = Object.keys(variantCountByType).length
         ? ` · 변형(${Object.entries(variantCountByType).map(([k, v]) => `${k}:${v}`).join(", ")})`
         : "";
 
-      previewSummary.textContent = `탐색 실행: ${results.length} · 실패: ${failed.length} · 스키마 실패: ${schemaFailCount}${variantLine}`;
+      previewSummary.textContent = `탐색 실행: ${results.length} · 실패: ${failed.length} · 스키마 실패: ${schemaFailCount} · 시맨틱 실패: ${semanticFailCount} · 보안 경고: ${securityWarnCount}${variantLine}`;
       summaryTotal.textContent = String(results.length);
       summaryFailed.textContent = String(failed.length);
       summaryAvg.textContent = String(avg);
@@ -684,10 +686,15 @@ function renderExploreFailureList(failed, showDetails) {
       const li = document.createElement("li");
       const status = item.status || "-";
       const err = item.error || "";
-      const methodTag = item.variantType === "method" || item.isMethodVariant ? '<span class="tag">Method</span>' : "";
+      const tags = [];
+      if (item.variantType === "method" || item.isMethodVariant) tags.push("Method");
+      if (item.schemaErrors && item.schemaErrors.length) tags.push("Schema");
+      if (item.semanticErrors && item.semanticErrors.length) tags.push("Semantic");
+      if (item.securityWarnings && item.securityWarnings.length) tags.push("Security");
+      const tagHtml = tags.length ? ` ${tags.map((t) => `<span class=\"tag\">${t}</span>`).join(" ")}` : "";
       li.innerHTML = `
         <div class="row">
-          <div><strong>${item.method}</strong> <span class="status">${status}</span> ${methodTag}</div>
+          <div><strong>${item.method}</strong> <span class="status">${status}</span>${tagHtml}</div>
           <div>${item.name || ""}</div>
         </div>
         <div class="row">

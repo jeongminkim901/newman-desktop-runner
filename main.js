@@ -24,6 +24,7 @@ const {
   getJsonBody,
   buildVariants,
   buildSchemaVariants,
+  buildSecurityVariants,
   validateSchema,
   buildUrlWithQuery
 } = require("./lib/exploreHelpers");
@@ -660,7 +661,9 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
   let failed = 0;
   let schemaCheckedCount = 0;
   let schemaFailCount = 0;
-  const variantCountByType = { body: 0, query: 0, method: 0, schema: 0, custom: 0 };
+  let semanticFailCount = 0;
+  let securityWarnCount = 0;
+  const variantCountByType = { body: 0, query: 0, method: 0, schema: 0, custom: 0, security: 0 };
 
   const ctx = await pwRequest.newContext({ ignoreHTTPSErrors: !!ignoreTls });
   emitLog("[explore] starting exploratory api test...");
@@ -692,7 +695,11 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
       schemaEntry?.requestSchema && bodyInfo?.json
         ? buildSchemaVariants(schemaEntry.requestSchema, bodyInfo.json, maxVariants)
         : [];
-    const variants = [ ...baseVariants, ...schemaVariants ].slice(0, variantCap);
+    const securityVariants = buildSecurityVariants(
+      { queryParams, bodyJson: bodyInfo, schema: schemaEntry?.requestSchema },
+      2
+    );
+    const variants = [ ...baseVariants, ...schemaVariants, ...securityVariants ].slice(0, variantCap);
 
     const runOnce = async (
       variantLabel,
@@ -719,6 +726,8 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
       let responseText = "";
       let error = null;
       let schemaErrors = [];
+      let semanticErrors = [];
+      let securityWarnings = [];
       let attempt = 0;
       while (attempt < 2) {
         try {
@@ -746,6 +755,21 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
                 schemaErrors = [ "invalid json" ];
               }
             }
+          }
+          if (schemaContext && schemaContext.responseSchemas) {
+            const allowed = Object.keys(schemaContext.responseSchemas || {});
+            const isAllowed =
+              allowed.includes(String(status)) ||
+              (allowed.some((k) => /^2\\d\\d$/.test(k)) && status >= 200 && status < 300) ||
+              allowed.includes("default");
+            if (!isAllowed) {
+              semanticFailCount += 1;
+              semanticErrors = [ `status:${status}` ];
+            }
+          }
+          if (variantType === "security" && status >= 200 && status < 300) {
+            securityWarnCount += 1;
+            securityWarnings = [ "security:2xx" ];
           }
           if (status >= 500 && attempt === 0) {
             attempt += 1;
@@ -780,6 +804,8 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
         durationMs,
         error,
         schemaErrors,
+        semanticErrors,
+        securityWarnings,
         request: {
           headers: headersWithAuth,
           body: truncateBody(requestBody)
@@ -831,6 +857,8 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     ok: results.length - failed,
     schemaCheckedCount,
     schemaFailCount,
+    semanticFailCount,
+    securityWarnCount,
     variantCountByType
   };
 
@@ -850,8 +878,8 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
       return `<tr><td>${r.name}</td><td>${r.variant}${tag}</td><td>${r.method}</td><td>${r.status || ""}</td><td>${r.durationMs}</td><td>${r.error || ""}</td></tr>`;
     })
     .join("");
-  const variantLine = `body=${variantCountByType.body} query=${variantCountByType.query} method=${variantCountByType.method} schema=${variantCountByType.schema} custom=${variantCountByType.custom}`;
-  const html = `<!doctype html><html><head><meta charset=\"utf-8\"><title>Exploratory Report</title><style>body{font-family:Segoe UI,Arial,sans-serif;padding:16px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:6px;font-size:12px}th{background:#f3f4f6;text-align:left}.tag{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:999px;background:#e0f2fe;color:#075985;font-size:10px;font-weight:600}</style></head><body><h2>Exploratory Report</h2><p>Total: ${summary.total} • Failed: ${summary.failed} • Schema fail: ${summary.schemaFailCount}</p><p>Variants: ${variantLine}</p><table><thead><tr><th>Name</th><th>Variant</th><th>Method</th><th>Status</th><th>Ms</th><th>Error</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
+  const variantLine = `body=${variantCountByType.body} query=${variantCountByType.query} method=${variantCountByType.method} schema=${variantCountByType.schema} custom=${variantCountByType.custom} security=${variantCountByType.security}`;
+  const html = `<!doctype html><html><head><meta charset=\"utf-8\"><title>Exploratory Report</title><style>body{font-family:Segoe UI,Arial,sans-serif;padding:16px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:6px;font-size:12px}th{background:#f3f4f6;text-align:left}.tag{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:999px;background:#e0f2fe;color:#075985;font-size:10px;font-weight:600}</style></head><body><h2>Exploratory Report</h2><p>Total: ${summary.total} • Failed: ${summary.failed} • Schema fail: ${summary.schemaFailCount} • Semantic fail: ${summary.semanticFailCount} • Security warn: ${summary.securityWarnCount}</p><p>Variants: ${variantLine}</p><table><thead><tr><th>Name</th><th>Variant</th><th>Method</th><th>Status</th><th>Ms</th><th>Error</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
   fs.writeFileSync(reportHtml, html, "utf-8");
 
   const history = readHistory();
