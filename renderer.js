@@ -6,6 +6,7 @@ const openapiUrlInput = el("openapiUrl");
 const loadOpenapiBtn = el("loadOpenapiBtn");
 const openapiIgnoreTls = el("openapiIgnoreTls");
 const openapiServerSelect = el("openapiServer");
+const openapiServerCustom = el("openapiServerCustom");
 const environmentInput = el("environmentFile");
 const ipInput = el("ip");
 const tokenInput = el("token");
@@ -84,6 +85,8 @@ function loadSavedAuth() {
     const savedToken = localStorage.getItem(AUTH_KEYS.token);
     if (savedIp && ipInput) ipInput.value = savedIp;
     if (savedToken && tokenInput) tokenInput.value = savedToken;
+    const savedServer = localStorage.getItem("openapi_server");
+    if (savedServer && openapiServerCustom) openapiServerCustom.value = savedServer;
   } catch {
     // ignore localStorage errors
   }
@@ -186,6 +189,14 @@ const setOpenApiActive = (active) => {
     openapiServerSelect.innerHTML = `<option value="">OpenAPI를 먼저 불러오세요</option>`;
     openapiServerSelect.disabled = true;
   }
+  if (!active && openapiServerCustom) {
+    openapiServerCustom.value = "";
+    try {
+      localStorage.removeItem("openapi_server");
+    } catch {
+      // ignore
+    }
+  }
 };
 
 collectionInput.addEventListener("change", () => {
@@ -237,6 +248,14 @@ if (loadOpenapiBtn) {
           : `<option value="">(서버 목록 없음)</option>`;
         openapiServerSelect.innerHTML = options;
         openapiServerSelect.disabled = false;
+        try {
+          const saved = localStorage.getItem("openapi_server");
+          if (saved && servers.includes(saved)) {
+            openapiServerSelect.value = saved;
+          }
+        } catch {
+          // ignore
+        }
       }
       statusLine.textContent = "OpenAPI 로드 완료";
     } else {
@@ -264,12 +283,37 @@ if (clearSavedBtn) {
     try {
       localStorage.removeItem(AUTH_KEYS.ip);
       localStorage.removeItem(AUTH_KEYS.token);
+      localStorage.removeItem("openapi_server");
     } catch {
       // ignore localStorage errors
     }
     if (ipInput) ipInput.value = "";
     if (tokenInput) tokenInput.value = "";
+    if (openapiServerSelect) openapiServerSelect.value = "";
+    if (openapiServerCustom) openapiServerCustom.value = "";
     statusLine.textContent = "저장값을 지웠습니다.";
+  });
+}
+if (openapiServerSelect) {
+  openapiServerSelect.addEventListener("change", () => {
+    const value = openapiServerSelect.value;
+    try {
+      if (value) localStorage.setItem("openapi_server", value);
+      else localStorage.removeItem("openapi_server");
+    } catch {
+      // ignore
+    }
+  });
+}
+if (openapiServerCustom) {
+  openapiServerCustom.addEventListener("input", () => {
+    const value = openapiServerCustom.value.trim();
+    try {
+      if (value) localStorage.setItem("openapi_server", value);
+      else localStorage.removeItem("openapi_server");
+    } catch {
+      // ignore
+    }
   });
 }
 let historyCache = [];
@@ -723,7 +767,7 @@ runBtn.addEventListener("click", async () => {
     openapiPath: openapiFileInput?.files?.[0]?.path,
     openapiUrl: openapiUrlInput?.value?.trim(),
     openapiIgnoreTls: !!openapiIgnoreTls?.checked,
-    openapiServerUrl: openapiServerSelect?.value?.trim(),
+    openapiServerUrl: openapiServerCustom?.value?.trim() || openapiServerSelect?.value?.trim(),
     environmentPath: environmentInput.files[0]?.path,
     ip: ipInput.value.trim(),
     token: tokenInput.value.trim(),

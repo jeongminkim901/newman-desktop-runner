@@ -54,6 +54,13 @@
                 </select>
               </label>
             </div>
+            <div class="row wrap">
+              <label class="wide">
+                서버 URL 직접 입력 (선택)
+                <span class="help-tip" data-tip="직접 입력 시 서버 선택보다 우선 적용됩니다.">?</span>
+                <input id="openapiServerCustom" type="text" placeholder="https://api.example.com" />
+              </label>
+            </div>
             <div class="hint">OpenAPI를 불러오면 컬렉션 파일은 비활성화됩니다.</div>
           </label>
           <label>
@@ -319,6 +326,7 @@
                 <li><strong>IP</strong>와 <strong>토큰</strong>을 입력하면 요청에 치환/헤더가 자동 적용됩니다.</li>
                 <li><strong>추가 변수</strong>로 추가 변수 JSON을 넣을 수 있습니다.</li>
                 <li><strong>OpenAPI/Swagger</strong> 파일 또는 URL로 컬렉션을 생성할 수 있습니다.</li>
+                <li><strong>서버 선택/직접 입력</strong>으로 기본 URL을 지정할 수 있습니다.</li>
               </ol>
 
               <h4>3단계: 실행 모드 선택</h4>
