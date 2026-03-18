@@ -34,6 +34,7 @@ const exploreFailedOnly = el("exploreFailedOnly");
 const exploreTemplate = el("exploreTemplate");
 const exploreMethodVariants = el("exploreMethodVariants");
 const exploreHardMode = el("exploreHardMode");
+const semanticMode = el("semanticMode");
 const exploreIgnoreTls = el("exploreIgnoreTls");
 const exploreInclude = el("exploreInclude");
 const exploreExclude = el("exploreExclude");
@@ -811,6 +812,7 @@ runBtn.addEventListener("click", async () => {
     failedOnly: !!exploreFailedOnly?.checked,
     methodVariants: !!exploreMethodVariants?.checked,
     hardMode: !!exploreHardMode?.checked,
+    semanticMode: semanticMode?.value || "openapi",
     failedRequestNames,
     exploreInclude: exploreInclude?.value?.trim(),
     exploreExclude: exploreExclude?.value?.trim(),

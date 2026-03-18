@@ -182,6 +182,16 @@
               강화 모드 (보안/시맨틱)
               <span class="help-tip" data-tip="강화 모드는 보안 페이로드/검증을 확장합니다. 운영환경은 비권장, 개발/스테이징에서만 사용하세요.">?</span>
             </label>
+            <label>
+              시맨틱 프리셋
+              <span class="help-tip" data-tip="응답 기대값을 강제합니다. 기본은 OpenAPI 기준(없으면 완화).">?</span>
+              <select id="semanticMode">
+                <option value="openapi" selected>OpenAPI 기준</option>
+                <option value="expect_401">401 기대</option>
+                <option value="expect_404">404 기대</option>
+                <option value="allow_5xx">5xx 허용</option>
+              </select>
+            </label>
             <label class="toggle">
               <input id="exploreIgnoreTls" type="checkbox" />
               SSL 검증 무시 (개발/내부망용)

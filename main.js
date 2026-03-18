@@ -572,7 +572,8 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     exploreInclude,
     exploreExclude,
     methodVariants,
-    hardMode
+    hardMode,
+    semanticMode
   } = payload;
 
   if (!collectionPath && !openapiPath && !openapiUrl) {
@@ -757,13 +758,23 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
               }
             }
           }
-          if (schemaContext && schemaContext.responseSchemas) {
+          if (semanticMode && semanticMode !== "openapi") {
+            if (semanticMode === "expect_401" && status !== 401) {
+              semanticFailCount += 1;
+              semanticErrors = [ `status:${status}` ];
+            } else if (semanticMode === "expect_404" && status !== 404) {
+              semanticFailCount += 1;
+              semanticErrors = [ `status:${status}` ];
+            } else if (semanticMode === "allow_5xx") {
+              // allow 5xx without semantic failure
+            }
+          } else if (schemaContext && schemaContext.responseSchemas) {
             const allowed = Object.keys(schemaContext.responseSchemas || {});
             const isAllowed =
               allowed.includes(String(status)) ||
               (allowed.some((k) => /^2\\d\\d$/.test(k)) && status >= 200 && status < 300) ||
               allowed.includes("default");
-            if (!isAllowed) {
+            if (!isAllowed && !(semanticMode === "allow_5xx" && status >= 500)) {
               semanticFailCount += 1;
               semanticErrors = [ `status:${status}` ];
             }
