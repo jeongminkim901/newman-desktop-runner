@@ -150,6 +150,12 @@ textarea {
   flex-wrap: wrap;
 }
 
+.hint {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 6px;
+}
+
 .selector {
   display: flex;
   flex-direction: column;

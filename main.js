@@ -131,13 +131,15 @@ function readEnvVars(environmentPath) {
   }
 }
 
-function fetchUrl(url) {
+function fetchUrl(url, ignoreTls) {
   return new Promise((resolve, reject) => {
-    const client = url.startsWith("https://") ? https : http;
+    const isHttps = url.startsWith("https://");
+    const client = isHttps ? https : http;
+    const options = isHttps && ignoreTls ? { rejectUnauthorized: false } : undefined;
     client
-      .get(url, (res) => {
+      .get(url, options, (res) => {
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          return fetchUrl(res.headers.location).then(resolve).catch(reject);
+          return fetchUrl(res.headers.location, ignoreTls).then(resolve).catch(reject);
         }
         if (res.statusCode >= 400) {
           return reject(new Error(`HTTP ${res.statusCode}`));
@@ -181,10 +183,10 @@ function convertOpenApiToCollection(openapiObj) {
   });
 }
 
-async function loadOpenApiCollection({ openapiPath, openapiUrl }) {
+async function loadOpenApiCollection({ openapiPath, openapiUrl, ignoreTls }) {
   let raw;
   if (openapiUrl) {
-    raw = await fetchUrl(openapiUrl);
+    raw = await fetchUrl(openapiUrl, ignoreTls);
   } else if (openapiPath) {
     raw = fs.readFileSync(openapiPath, "utf-8");
   } else {
@@ -201,6 +203,7 @@ async function loadCollectionObject({
   collectionPath,
   openapiPath,
   openapiUrl,
+  openapiIgnoreTls,
   useSelectedRequests,
   selectedRequestNames,
   failedOnly,
@@ -208,7 +211,7 @@ async function loadCollectionObject({
 }) {
   let collectionObj;
   if (openapiPath || openapiUrl) {
-    collectionObj = await loadOpenApiCollection({ openapiPath, openapiUrl });
+    collectionObj = await loadOpenApiCollection({ openapiPath, openapiUrl, ignoreTls: openapiIgnoreTls });
   } else if (collectionPath) {
     const raw = fs.readFileSync(collectionPath, "utf-8");
     const obj = normalizeCollection(JSON.parse(raw));

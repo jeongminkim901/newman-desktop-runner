@@ -40,7 +40,12 @@
               <input id="openapiFile" type="file" accept=".json,.yaml,.yml" />
               <input id="openapiUrl" type="text" placeholder="https://host/swagger/v1/swagger.json" />
               <button id="loadOpenapiBtn" type="button">OpenAPI 불러오기</button>
+              <label class="toggle">
+                <input id="openapiIgnoreTls" type="checkbox" />
+                OpenAPI SSL 검증 무시
+              </label>
             </div>
+            <div class="hint">OpenAPI를 불러오면 컬렉션 파일은 비활성화됩니다.</div>
           </label>
           <label>
             반복 횟수

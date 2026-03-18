@@ -4,6 +4,7 @@ const collectionInput = el("collectionFile");
 const openapiFileInput = el("openapiFile");
 const openapiUrlInput = el("openapiUrl");
 const loadOpenapiBtn = el("loadOpenapiBtn");
+const openapiIgnoreTls = el("openapiIgnoreTls");
 const environmentInput = el("environmentFile");
 const ipInput = el("ip");
 const tokenInput = el("token");
@@ -176,9 +177,20 @@ function renderCollectionTree() {
   collectionTree.appendChild(buildTree(collectionCache.item || [], filter));
 }
 
+let openapiActive = false;
+const setOpenApiActive = (active) => {
+  openapiActive = active;
+  if (collectionInput) collectionInput.disabled = active;
+};
+
 collectionInput.addEventListener("change", () => {
   const file = collectionInput.files[0];
   if (!file) return;
+  if (openapiActive) {
+    if (openapiFileInput) openapiFileInput.value = "";
+    if (openapiUrlInput) openapiUrlInput.value = "";
+    setOpenApiActive(false);
+  }
   const reader = new FileReader();
   reader.onload = () => {
     try {
@@ -203,9 +215,12 @@ if (loadOpenapiBtn) {
     statusLine.textContent = "OpenAPI 불러오는 중...";
     const res = await window.api.loadOpenApi({
       openapiPath: file?.path,
-      openapiUrl
+      openapiUrl,
+      ignoreTls: !!openapiIgnoreTls?.checked
     });
     if (res?.ok && res.collection) {
+      if (collectionInput) collectionInput.value = "";
+      setOpenApiActive(true);
       collectionCache = res.collection;
       selection = new Set(flattenRequests(collectionCache.item || []));
       renderCollectionTree();
@@ -693,6 +708,7 @@ runBtn.addEventListener("click", async () => {
     collectionPath: collectionInput.files[0]?.path,
     openapiPath: openapiFileInput?.files?.[0]?.path,
     openapiUrl: openapiUrlInput?.value?.trim(),
+    openapiIgnoreTls: !!openapiIgnoreTls?.checked,
     environmentPath: environmentInput.files[0]?.path,
     ip: ipInput.value.trim(),
     token: tokenInput.value.trim(),
