@@ -186,6 +186,14 @@ function parseOpenApi(raw, sourceName = "openapi") {
     }
   }
 }
+function extractOpenApiServers(openapiObj) {
+  const servers = [];
+  if (Array.isArray(openapiObj?.servers)) {
+    openapiObj.servers.forEach((s) => {
+      if (s?.url) servers.push(String(s.url));
+    });
+  }
+  if (!servers.length && openapiObj?.host) {
     const schemes = Array.isArray(openapiObj.schemes) && openapiObj.schemes.length ? openapiObj.schemes : [ "https", "http" ];
     const basePath = openapiObj.basePath || "";
     schemes.forEach((scheme) => {
@@ -384,11 +392,11 @@ ipcMain.handle("run-newman", async (_event, payload) => {
   } = payload;
 
   if (!collectionPath && !openapiPath && !openapiUrl) {
-  if (!collectionPath && !openapiPath && !openapiUrl) {
     return { ok: false, error: "컬렉션 또는 OpenAPI가 필요합니다." };
-  if (!reporters || !reporters.length) {
+  }
   if (!reporters || !reporters.length) {
     return { ok: false, error: "리포터를 최소 1개 선택하세요." };
+  }
 
   const envVars = [];
   if (ip) envVars.push({ key: "ip", value: ip, enabled: true });
