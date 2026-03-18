@@ -145,8 +145,20 @@ input:disabled {
 }
 
 textarea {
-  min-height: 130px;
+  min-height: 160px;
   resize: vertical;
+}
+
+#extraVars {
+  min-height: 170px;
+}
+
+#invalidVars {
+  min-height: 170px;
+}
+
+#exploreCustomJson {
+  min-height: 240px;
 }
 
 .toggle.wide {
