@@ -110,8 +110,8 @@ ipcMain.handle("get-history", () => readHistory());
 
 ipcMain.handle("load-openapi", async (_event, payload) => {
   try {
-    const collection = await loadOpenApiCollection(payload || {});
-    return { ok: true, collection };
+    const res = await loadOpenApiCollection(payload || {});
+    return { ok: true, collection: res.collection, servers: res.servers };
   } catch (e) {
     return { ok: false, error: e.message || String(e) };
   }
@@ -167,6 +167,23 @@ function parseOpenApi(raw, sourceName = "openapi") {
   }
 }
 
+function extractOpenApiServers(openapiObj) {
+  const servers = [];
+  if (Array.isArray(openapiObj?.servers)) {
+    openapiObj.servers.forEach((s) => {
+      if (s?.url) servers.push(String(s.url));
+    });
+  }
+  if (!servers.length && openapiObj?.host) {
+    const schemes = Array.isArray(openapiObj.schemes) && openapiObj.schemes.length ? openapiObj.schemes : [ "https", "http" ];
+    const basePath = openapiObj.basePath || "";
+    schemes.forEach((scheme) => {
+      servers.push(`${scheme}://${openapiObj.host}${basePath}`);
+    });
+  }
+  return Array.from(new Set(servers));
+}
+
 function convertOpenApiToCollection(openapiObj) {
   return new Promise((resolve, reject) => {
     openapiToPostman.convertV2(
@@ -193,10 +210,11 @@ async function loadOpenApiCollection({ openapiPath, openapiUrl, ignoreTls }) {
     throw new Error("OpenAPI 파일 또는 URL이 필요합니다.");
   }
   const openapiObj = parseOpenApi(raw, "OpenAPI");
+  const servers = extractOpenApiServers(openapiObj);
   const collectionObj = await convertOpenApiToCollection(openapiObj);
   const normalized = normalizeCollection(collectionObj);
   if (!normalized) throw new Error("OpenAPI 변환 결과가 유효하지 않습니다.");
-  return normalized;
+  return { collection: normalized, servers };
 }
 
 async function loadCollectionObject({
@@ -211,7 +229,8 @@ async function loadCollectionObject({
 }) {
   let collectionObj;
   if (openapiPath || openapiUrl) {
-    collectionObj = await loadOpenApiCollection({ openapiPath, openapiUrl, ignoreTls: openapiIgnoreTls });
+    const res = await loadOpenApiCollection({ openapiPath, openapiUrl, ignoreTls: openapiIgnoreTls });
+    collectionObj = res.collection;
   } else if (collectionPath) {
     const raw = fs.readFileSync(collectionPath, "utf-8");
     const obj = normalizeCollection(JSON.parse(raw));
@@ -244,6 +263,8 @@ ipcMain.handle("run-newman", async (_event, payload) => {
     collectionPath,
     openapiPath,
     openapiUrl,
+    openapiIgnoreTls,
+    openapiServerUrl,
     environmentPath,
     ip,
     token,
@@ -270,6 +291,7 @@ ipcMain.handle("run-newman", async (_event, payload) => {
   const envVars = [];
   if (ip) envVars.push({ key: "ip", value: ip, enabled: true });
   if (token) envVars.push({ key: "token", value: token, enabled: true });
+  if (openapiServerUrl) envVars.push({ key: "baseUrl", value: openapiServerUrl, enabled: true });
 
   if (extraVarsJson) {
     try {
@@ -420,6 +442,8 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     collectionPath,
     openapiPath,
     openapiUrl,
+    openapiIgnoreTls,
+    openapiServerUrl,
     environmentPath,
     ip,
     token,
@@ -446,6 +470,7 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
 
   const envVars = readEnvVars(environmentPath);
   const extraVars = extraVarsJson ? parseVarsJson(extraVarsJson) : [];
+  if (openapiServerUrl) extraVars.push({ key: "baseUrl", value: openapiServerUrl, enabled: true });
   const varsMap = buildVarsMap({ envVars, extraVars, ip, token });
 
   let collectionObj;

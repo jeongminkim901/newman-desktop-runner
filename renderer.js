@@ -5,6 +5,7 @@ const openapiFileInput = el("openapiFile");
 const openapiUrlInput = el("openapiUrl");
 const loadOpenapiBtn = el("loadOpenapiBtn");
 const openapiIgnoreTls = el("openapiIgnoreTls");
+const openapiServerSelect = el("openapiServer");
 const environmentInput = el("environmentFile");
 const ipInput = el("ip");
 const tokenInput = el("token");
@@ -181,16 +182,21 @@ let openapiActive = false;
 const setOpenApiActive = (active) => {
   openapiActive = active;
   if (collectionInput) collectionInput.disabled = active;
+  if (!active && openapiServerSelect) {
+    openapiServerSelect.innerHTML = `<option value="">OpenAPI를 먼저 불러오세요</option>`;
+    openapiServerSelect.disabled = true;
+  }
 };
 
 collectionInput.addEventListener("change", () => {
   const file = collectionInput.files[0];
   if (!file) return;
-  if (openapiActive) {
-    if (openapiFileInput) openapiFileInput.value = "";
-    if (openapiUrlInput) openapiUrlInput.value = "";
-    setOpenApiActive(false);
-  }
+    if (openapiActive) {
+      if (openapiFileInput) openapiFileInput.value = "";
+      if (openapiUrlInput) openapiUrlInput.value = "";
+      if (openapiIgnoreTls) openapiIgnoreTls.checked = false;
+      setOpenApiActive(false);
+    }
   const reader = new FileReader();
   reader.onload = () => {
     try {
@@ -224,6 +230,14 @@ if (loadOpenapiBtn) {
       collectionCache = res.collection;
       selection = new Set(flattenRequests(collectionCache.item || []));
       renderCollectionTree();
+      if (openapiServerSelect) {
+        const servers = Array.isArray(res.servers) ? res.servers : [];
+        const options = servers.length
+          ? servers.map((url) => `<option value="${url}">${url}</option>`).join("")
+          : `<option value="">(서버 목록 없음)</option>`;
+        openapiServerSelect.innerHTML = options;
+        openapiServerSelect.disabled = false;
+      }
       statusLine.textContent = "OpenAPI 로드 완료";
     } else {
       statusLine.textContent = `OpenAPI 로드 실패: ${res?.error || "알 수 없음"}`;
@@ -709,6 +723,7 @@ runBtn.addEventListener("click", async () => {
     openapiPath: openapiFileInput?.files?.[0]?.path,
     openapiUrl: openapiUrlInput?.value?.trim(),
     openapiIgnoreTls: !!openapiIgnoreTls?.checked,
+    openapiServerUrl: openapiServerSelect?.value?.trim(),
     environmentPath: environmentInput.files[0]?.path,
     ip: ipInput.value.trim(),
     token: tokenInput.value.trim(),

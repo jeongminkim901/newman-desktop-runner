@@ -119,13 +119,20 @@ label:not(.toggle) > .tree {
 }
 
 input,
-textarea {
+textarea,
+select {
   background: #0f141b;
   border: 1px solid var(--border);
   border-radius: 8px;
   color: var(--text);
   padding: 10px 12px;
   font-size: 13px;
+}
+
+select:disabled,
+input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 textarea {
