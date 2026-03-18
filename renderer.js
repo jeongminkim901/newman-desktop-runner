@@ -570,8 +570,13 @@ async function loadJsonSummary(jsonPath, cachedText) {
         else if (code >= 400 && code < 500) groups["4"] += 1;
         else if (code >= 500 && code < 600) groups["5"] += 1;
       });
+      const schemaFailCount = data.summary?.schemaFailCount ?? 0;
+      const variantCountByType = data.summary?.variantCountByType || {};
+      const variantLine = Object.keys(variantCountByType).length
+        ? ` · 변형(${Object.entries(variantCountByType).map(([k, v]) => `${k}:${v}`).join(", ")})`
+        : "";
 
-      previewSummary.textContent = `탐색 실행: ${results.length} · 실패: ${failed.length}`;
+      previewSummary.textContent = `탐색 실행: ${results.length} · 실패: ${failed.length} · 스키마 실패: ${schemaFailCount}${variantLine}`;
       summaryTotal.textContent = String(results.length);
       summaryFailed.textContent = String(failed.length);
       summaryAvg.textContent = String(avg);
@@ -662,22 +667,37 @@ function renderExploreFailureList(failed, showDetails) {
     return;
   }
 
-  failed.slice(0, 50).forEach((item) => {
-    const li = document.createElement("li");
-    const status = item.status || "-";
-    const err = item.error || "";
-    li.innerHTML = `
-      <div class="row">
-        <div><strong>${item.method}</strong> <span class="status">${status}</span></div>
-        <div>${item.name || ""}</div>
-      </div>
-      <div class="row">
-        <div class="url">${item.url || ""}</div>
-        <div>${item.variant || ""} ${err ? "· " + err : ""}</div>
-      </div>
-      ${showDetails ? `<pre class="reqres">요청\n${item.request?.body || ""}</pre><pre class="reqres">응답\n${item.response?.body || ""}</pre>` : ""}
-    `;
-    failureList.appendChild(li);
+  const methodVariants = failed.filter((item) => item.variantType === "method" || item.isMethodVariant);
+  const otherVariants = failed.filter((item) => !(item.variantType === "method" || item.isMethodVariant));
+  const sections = [
+    { title: "Method 변형", list: methodVariants },
+    { title: "기타 변형", list: otherVariants }
+  ];
+
+  sections.forEach((section) => {
+    if (!section.list.length) return;
+    const header = document.createElement("li");
+    header.className = "section-title";
+    header.textContent = section.title;
+    failureList.appendChild(header);
+    section.list.slice(0, 50).forEach((item) => {
+      const li = document.createElement("li");
+      const status = item.status || "-";
+      const err = item.error || "";
+      const methodTag = item.variantType === "method" || item.isMethodVariant ? '<span class="tag">Method</span>' : "";
+      li.innerHTML = `
+        <div class="row">
+          <div><strong>${item.method}</strong> <span class="status">${status}</span> ${methodTag}</div>
+          <div>${item.name || ""}</div>
+        </div>
+        <div class="row">
+          <div class="url">${item.url || ""}</div>
+          <div>${item.variant || ""} ${err ? "· " + err : ""}</div>
+        </div>
+        ${showDetails ? `<pre class="reqres">요청\n${item.request?.body || ""}</pre><pre class="reqres">응답\n${item.response?.body || ""}</pre>` : ""}
+      `;
+      failureList.appendChild(li);
+    });
   });
 }
 tabHtml.addEventListener("click", () => {
