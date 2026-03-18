@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain, Menu, shell } = require("electron");
+﻿const { app, BrowserWindow, dialog, ipcMain, Menu, shell } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const http = require("http");
@@ -23,6 +23,8 @@ const {
   getQueryParams,
   getJsonBody,
   buildVariants,
+  buildSchemaVariants,
+  validateSchema,
   buildUrlWithQuery
 } = require("./lib/exploreHelpers");
 
@@ -184,15 +186,6 @@ function parseOpenApi(raw, sourceName = "openapi") {
     }
   }
 }
-
-function extractOpenApiServers(openapiObj) {
-  const servers = [];
-  if (Array.isArray(openapiObj?.servers)) {
-    openapiObj.servers.forEach((s) => {
-      if (s?.url) servers.push(String(s.url));
-    });
-  }
-  if (!servers.length && openapiObj?.host) {
     const schemes = Array.isArray(openapiObj.schemes) && openapiObj.schemes.length ? openapiObj.schemes : [ "https", "http" ];
     const basePath = openapiObj.basePath || "";
     schemes.forEach((scheme) => {
@@ -232,7 +225,7 @@ async function loadOpenApiCollection({ openapiPath, openapiUrl, ignoreTls }) {
   const collectionObj = await convertOpenApiToCollection(openapiObj);
   const normalized = normalizeCollection(collectionObj);
   if (!normalized) throw new Error("OpenAPI 변환 결과가 유효하지 않습니다.");
-  return { collection: normalized, servers };
+  return { collection: normalized, servers, openapiObj };
 }
 
 async function loadCollectionObject({
@@ -249,6 +242,7 @@ async function loadCollectionObject({
   if (openapiPath || openapiUrl) {
     const res = await loadOpenApiCollection({ openapiPath, openapiUrl, ignoreTls: openapiIgnoreTls });
     collectionObj = res.collection;
+    collectionObj.__openapi = res.openapiObj;
   } else if (collectionPath) {
     const raw = fs.readFileSync(collectionPath, "utf-8");
     const obj = normalizeCollection(JSON.parse(raw));
@@ -276,6 +270,96 @@ async function loadCollectionObject({
   return collectionObj;
 }
 
+function normalizePathForMatch(urlPath, serverUrl) {
+  if (!serverUrl) return urlPath;
+  try {
+    const server = new URL(serverUrl);
+    const basePath = server.pathname.endsWith("/") ? server.pathname.slice(0, -1) : server.pathname;
+    if (basePath && urlPath.startsWith(basePath)) {
+      const next = urlPath.slice(basePath.length);
+      return next.startsWith("/") ? next : "/" + next;
+    }
+  } catch {
+    return urlPath;
+  }
+  return urlPath;
+}
+
+function buildPathRegex(pathTemplate) {
+  const escaped = pathTemplate.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = escaped.replace(/\\{[^/]+\\}/g, "[^/]+");
+  return new RegExp(`^${pattern}$`);
+}
+
+function buildSchemaIndex(openapiObj) {
+  if (!openapiObj || !openapiObj.paths) return [];
+  const entries = [];
+  const basePath = openapiObj.basePath || "";
+  Object.entries(openapiObj.paths).forEach(([pathKey, pathItem]) => {
+    if (!pathItem) return;
+    const mergedPath = basePath && !pathKey.startsWith(basePath) ? basePath + pathKey : pathKey;
+    Object.entries(pathItem).forEach(([method, op]) => {
+      const m = method.toUpperCase();
+      if (!op || [ "PARAMETERS", "SUMMARY" ].includes(m)) return;
+      let requestSchema = null;
+      if (op.requestBody?.content) {
+        const jsonContent = op.requestBody.content["application/json"] || op.requestBody.content["application/*+json"];
+        requestSchema = jsonContent?.schema || null;
+      }
+      if (!requestSchema && Array.isArray(op.parameters)) {
+        const bodyParam = op.parameters.find((p) => p.in === "body" && p.schema);
+        requestSchema = bodyParam?.schema || null;
+      }
+      const responses = op.responses || {};
+      const responseSchemas = {};
+      Object.entries(responses).forEach(([code, info]) => {
+        if (!info) return;
+        if (info.content) {
+          const jsonContent = info.content["application/json"] || info.content["application/*+json"];
+          if (jsonContent?.schema) responseSchemas[code] = jsonContent.schema;
+        } else if (info.schema) {
+          responseSchemas[code] = info.schema;
+        }
+      });
+      const staticScore = (mergedPath.match(/\\{[^/]+\\}/g) || []).length * -1 + mergedPath.length;
+      entries.push({
+        method: m,
+        pathTemplate: mergedPath,
+        regex: buildPathRegex(mergedPath),
+        staticScore,
+        requestSchema,
+        responseSchemas
+      });
+    });
+  });
+  return entries;
+}
+
+function findSchemaEntry(schemaIndex, method, urlPath) {
+  const matches = schemaIndex.filter((e) => e.method === method && e.regex.test(urlPath));
+  if (!matches.length) return null;
+  matches.sort((a, b) => b.staticScore - a.staticScore);
+  return matches[0];
+}
+
+function resolveResponseSchema(entry, status) {
+  if (!entry || !entry.responseSchemas) return null;
+  const code = String(status || "");
+  if (entry.responseSchemas[code]) return entry.responseSchemas[code];
+  if (/^2\\d\\d$/.test(code)) {
+    const any2xx = Object.keys(entry.responseSchemas).find((k) => /^2\\d\\d$/.test(k));
+    if (any2xx) return entry.responseSchemas[any2xx];
+  }
+  if (entry.responseSchemas.default) return entry.responseSchemas.default;
+  return null;
+}
+
+function computeVariantCap(method, maxVariants) {
+  if ([ "POST", "PUT", "PATCH", "DELETE" ].includes(method)) return Math.min(maxVariants, 2);
+  if ([ "GET", "HEAD" ].includes(method)) return Math.min(maxVariants, 3);
+  return Math.min(maxVariants, 2);
+}
+
 ipcMain.handle("run-newman", async (_event, payload) => {
   const {
     collectionPath,
@@ -300,11 +384,11 @@ ipcMain.handle("run-newman", async (_event, payload) => {
   } = payload;
 
   if (!collectionPath && !openapiPath && !openapiUrl) {
+  if (!collectionPath && !openapiPath && !openapiUrl) {
     return { ok: false, error: "컬렉션 또는 OpenAPI가 필요합니다." };
-  }
+  if (!reporters || !reporters.length) {
   if (!reporters || !reporters.length) {
     return { ok: false, error: "리포터를 최소 1개 선택하세요." };
-  }
 
   const envVars = [];
   if (ip) envVars.push({ key: "ip", value: ip, enabled: true });
@@ -507,6 +591,7 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
   }
 
   let items = collectionObj.item || [];
+  const schemaIndex = buildSchemaIndex(collectionObj.__openapi);
 
   const flattenItems = (arr, out = [], prefix = "") => {
     arr.forEach((it) => {
@@ -565,6 +650,9 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
 
   const results = [];
   let failed = 0;
+  let schemaCheckedCount = 0;
+  let schemaFailCount = 0;
+  const variantCountByType = { body: 0, query: 0, method: 0, schema: 0, custom: 0 };
 
   const ctx = await pwRequest.newContext({ ignoreHTTPSErrors: !!ignoreTls });
   emitLog("[explore] starting exploratory api test...");
@@ -576,15 +664,37 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     const urlRaw = getRequestUrl(item?.request, varsMap, ip);
     const queryParams = getQueryParams(item?.request, varsMap);
     const bodyInfo = getJsonBody(item?.request, varsMap);
-    const variants = buildVariants(
-      { queryParams, bodyJson: bodyInfo, mode: ruleMode, customVariants },
-      maxVariants
-    );
 
     const baseUrl = buildUrlWithQuery(urlRaw, queryParams);
     const baseBody = bodyInfo?.raw || "";
+    let urlPath = "";
+    try {
+      urlPath = new URL(baseUrl).pathname || "";
+    } catch {
+      urlPath = "";
+    }
+    const normalizedPath = normalizePathForMatch(urlPath, openapiServerUrl);
+    const schemaEntry = schemaIndex.length ? findSchemaEntry(schemaIndex, method, normalizedPath || urlPath) : null;
+    const variantCap = computeVariantCap(method, maxVariants);
+    const baseVariants = buildVariants(
+      { queryParams, bodyJson: bodyInfo, mode: ruleMode, customVariants },
+      maxVariants
+    );
+    const schemaVariants =
+      schemaEntry?.requestSchema && bodyInfo?.json
+        ? buildSchemaVariants(schemaEntry.requestSchema, bodyInfo.json, maxVariants)
+        : [];
+    const variants = [ ...baseVariants, ...schemaVariants ].slice(0, variantCap);
 
-    const runOnce = async (variantLabel, url, bodyJson, methodOverride, dropBody = false) => {
+    const runOnce = async (
+      variantLabel,
+      url,
+      bodyJson,
+      methodOverride,
+      dropBody = false,
+      variantType = "base",
+      schemaContext = schemaEntry
+    ) => {
       const methodToUse = methodOverride || method;
       const requestBody = dropBody
         ? ""
@@ -600,29 +710,68 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
       let status = 0;
       let responseText = "";
       let error = null;
-      try {
-        const res = await ctx.fetch(url, {
-          method: methodToUse,
-          headers: headersFinal,
-          data: requestBody || undefined
-        });
-        status = res.status();
-        responseText = truncateBody(await res.text());
-      } catch (e) {
-        error = e.message || String(e);
+      let schemaErrors = [];
+      let attempt = 0;
+      while (attempt < 2) {
+        try {
+          const res = await ctx.fetch(url, {
+            method: methodToUse,
+            headers: headersFinal,
+            data: requestBody || undefined
+          });
+          status = res.status();
+          const rawText = await res.text();
+          responseText = truncateBody(rawText);
+          if (schemaContext) {
+            const responseSchema = resolveResponseSchema(schemaContext, status);
+            if (responseSchema) {
+              schemaCheckedCount += 1;
+              try {
+                const parsed = JSON.parse(rawText);
+                const errors = validateSchema(responseSchema, parsed);
+                if (errors.length) {
+                  schemaFailCount += 1;
+                  schemaErrors = errors;
+                }
+              } catch (e) {
+                schemaFailCount += 1;
+                schemaErrors = [ "invalid json" ];
+              }
+            }
+          }
+          if (status >= 500 && attempt === 0) {
+            attempt += 1;
+            await sleep(200);
+            continue;
+          }
+          break;
+        } catch (e) {
+          error = e.message || String(e);
+          if (attempt === 0) {
+            attempt += 1;
+            await sleep(200);
+            continue;
+          }
+          break;
+        }
       }
       const durationMs = Date.now() - started;
       if (error || status >= 400) failed += 1;
       const isMethodVariant = String(variantLabel || "").startsWith("method:");
+      if (variantCountByType[variantType] !== undefined) {
+        variantCountByType[variantType] += 1;
+      }
       results.push({
         name: item.name || "Request",
         variant: variantLabel,
         isMethodVariant,
+        variantType,
         method: methodToUse,
         url,
         status,
         durationMs,
         error,
+        schemaErrors,
         request: {
           headers: headersWithAuth,
           body: truncateBody(requestBody)
@@ -635,13 +784,13 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
       emitLog(`[explore] ${methodToUse} ${url} => ${status || "ERR"} ${variantLabel}`);
     };
 
-    await runOnce("base", baseUrl, null);
+    await runOnce("base", baseUrl, null, null, false, "base");
     for (const variant of variants) {
       if (variant.query) {
         const vUrl = buildUrlWithQuery(urlRaw, variant.query);
-        await runOnce(variant.label, vUrl, null);
+        await runOnce(variant.label, vUrl, null, null, false, variant.type || "query");
       } else if (variant.body) {
-        await runOnce(variant.label, baseUrl, variant.body);
+        await runOnce(variant.label, baseUrl, variant.body, null, false, variant.type || "body");
       }
       if (delayMs > 0) await sleep(delayMs);
     }
@@ -658,7 +807,7 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
       }
 
       for (const mv of methodVariants) {
-        await runOnce(mv.label, baseUrl, null, mv.method, mv.dropBody);
+        await runOnce(mv.label, baseUrl, null, mv.method, mv.dropBody, "method");
         if (delayMs > 0) await sleep(delayMs);
       }
     }
@@ -671,7 +820,10 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
   const summary = {
     total: results.length,
     failed,
-    ok: results.length - failed
+    ok: results.length - failed,
+    schemaCheckedCount,
+    schemaFailCount,
+    variantCountByType
   };
 
   const report = {
@@ -686,11 +838,12 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
   const reportHtml = path.join(outputDir, `${runId}.html`);
   const rows = results
     .map((r) => {
-      const tag = r.isMethodVariant ? ' <span class="tag">Method</span>' : "";
+      const tag = r.isMethodVariant ? " <span class=\"tag\">Method</span>" : "";
       return `<tr><td>${r.name}</td><td>${r.variant}${tag}</td><td>${r.method}</td><td>${r.status || ""}</td><td>${r.durationMs}</td><td>${r.error || ""}</td></tr>`;
     })
     .join("");
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Exploratory Report</title><style>body{font-family:Segoe UI,Arial,sans-serif;padding:16px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:6px;font-size:12px}th{background:#f3f4f6;text-align:left}.tag{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:999px;background:#e0f2fe;color:#075985;font-size:10px;font-weight:600}</style></head><body><h2>Exploratory Report</h2><p>Total: ${summary.total} ? Failed: ${summary.failed}</p><table><thead><tr><th>Name</th><th>Variant</th><th>Method</th><th>Status</th><th>Ms</th><th>Error</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
+  const variantLine = `body=${variantCountByType.body} query=${variantCountByType.query} method=${variantCountByType.method} schema=${variantCountByType.schema} custom=${variantCountByType.custom}`;
+  const html = `<!doctype html><html><head><meta charset=\"utf-8\"><title>Exploratory Report</title><style>body{font-family:Segoe UI,Arial,sans-serif;padding:16px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:6px;font-size:12px}th{background:#f3f4f6;text-align:left}.tag{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:999px;background:#e0f2fe;color:#075985;font-size:10px;font-weight:600}</style></head><body><h2>Exploratory Report</h2><p>Total: ${summary.total} • Failed: ${summary.failed} • Schema fail: ${summary.schemaFailCount}</p><p>Variants: ${variantLine}</p><table><thead><tr><th>Name</th><th>Variant</th><th>Method</th><th>Status</th><th>Ms</th><th>Error</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
   fs.writeFileSync(reportHtml, html, "utf-8");
 
   const history = readHistory();

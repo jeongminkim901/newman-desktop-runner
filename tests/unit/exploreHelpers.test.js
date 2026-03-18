@@ -3,6 +3,8 @@ const {
   substituteVars,
   ensureAuthHeader,
   buildVariants,
+  buildSchemaVariants,
+  validateSchema,
   buildUrlWithQuery
 } = require("../../lib/exploreHelpers");
 
@@ -30,6 +32,7 @@ describe("exploreHelpers", () => {
   test("buildVariants uses query params first", () => {
     const variants = buildVariants({ queryParams: [ { key: "a", value: "1" } ], mode: "basic" }, 3);
     expect(variants[0].label).toMatch("query:remove");
+    expect(variants[0].type).toBe("query");
   });
 
   test("buildVariants supports extended mode", () => {
@@ -46,6 +49,40 @@ describe("exploreHelpers", () => {
       3
     );
     expect(variants[0].label).toBe("c1");
+    expect(variants[0].type).toBe("custom");
+  });
+
+  test("buildSchemaVariants generates schema-based cases", () => {
+    const schema = {
+      type: "object",
+      required: [ "name" ],
+      properties: {
+        name: { type: "string", minLength: 2, maxLength: 3 },
+        role: { type: "string", enum: [ "admin", "user" ] },
+        age: { type: "number", minimum: 1, maximum: 10 }
+      }
+    };
+    const variants = buildSchemaVariants(schema, { name: "ok", role: "admin", age: 5 }, 10);
+    expect(variants.some((v) => v.label.startsWith("schema:missing"))).toBe(true);
+    expect(variants.some((v) => v.label.startsWith("schema:enum"))).toBe(true);
+    expect(variants.some((v) => v.label.startsWith("schema:minLength"))).toBe(true);
+    expect(variants.some((v) => v.label.startsWith("schema:maxLength"))).toBe(true);
+    expect(variants.some((v) => v.label.startsWith("schema:minimum"))).toBe(true);
+    expect(variants.some((v) => v.label.startsWith("schema:maximum"))).toBe(true);
+  });
+
+  test("validateSchema detects required/type/enum", () => {
+    const schema = {
+      type: "object",
+      required: [ "id" ],
+      properties: {
+        id: { type: "integer" },
+        status: { type: "string", enum: [ "ok" ] }
+      }
+    };
+    const errors = validateSchema(schema, { id: "1", status: "bad" });
+    expect(errors.some((e) => e.includes("$.id"))).toBe(true);
+    expect(errors.some((e) => e.includes("$.status"))).toBe(true);
   });
 
   test("buildUrlWithQuery rewrites query", () => {
