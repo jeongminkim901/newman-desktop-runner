@@ -433,7 +433,7 @@ function renderHistory() {
         const htmlPath = btn.getAttribute("data-preview-html");
         const jsonPath = btn.getAttribute("data-preview-json");
         if (p) {
-          window.open(`file:///${p.replace(/\\\\/g, "/")}`);
+          window.api.openPath(p);
           return;
         }
         if (htmlPath) {
@@ -495,15 +495,14 @@ function setPreviewMode(mode) {
 }
 
 async function loadHtmlPreview(htmlPath) {
-  try {
-    const res = await fetch(`file:///${htmlPath.replace(/\\/g, "/")}`);
-    const text = await res.text();
-    htmlPreview.srcdoc = text;
-    htmlSoloPreview.srcdoc = text;
-  } catch (e) {
-    htmlPreview.srcdoc = `<pre>HTML 로드 실패: ${e.message}</pre>`;
-    htmlSoloPreview.srcdoc = `<pre>HTML 로드 실패: ${e.message}</pre>`;
+  const res = await window.api.readFile(htmlPath);
+  if (res?.ok) {
+    htmlPreview.srcdoc = res.text;
+    htmlSoloPreview.srcdoc = res.text;
+    return;
   }
+  htmlPreview.srcdoc = `<pre>HTML 로드 실패: ${res?.error || "알 수 없음"}</pre>`;
+  htmlSoloPreview.srcdoc = `<pre>HTML 로드 실패: ${res?.error || "알 수 없음"}</pre>`;
 }
 
 function showHtmlPreview(htmlPath, jsonPath) {
@@ -517,16 +516,15 @@ function showHtmlPreview(htmlPath, jsonPath) {
 }
 
 async function showJsonPreview(jsonPath, htmlPath) {
-  try {
-    lastPreviewJsonPath = jsonPath;
-    const res = await fetch(`file:///${jsonPath.replace(/\\/g, "/")}`);
-    const text = await res.text();
-    jsonPreview.textContent = text;
-    jsonSoloPreview.textContent = text;
-    loadJsonSummary(jsonPath, text);
-  } catch (e) {
-    jsonPreview.textContent = `JSON 로드 실패: ${e.message}`;
-    jsonSoloPreview.textContent = `JSON 로드 실패: ${e.message}`;
+  lastPreviewJsonPath = jsonPath;
+  const res = await window.api.readFile(jsonPath);
+  if (res?.ok) {
+    jsonPreview.textContent = res.text;
+    jsonSoloPreview.textContent = res.text;
+    loadJsonSummary(jsonPath, res.text);
+  } else {
+    jsonPreview.textContent = `JSON 로드 실패: ${res?.error || "알 수 없음"}`;
+    jsonSoloPreview.textContent = `JSON 로드 실패: ${res?.error || "알 수 없음"}`;
   }
   if (htmlPath) {
     await loadHtmlPreview(htmlPath);

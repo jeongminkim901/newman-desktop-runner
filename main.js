@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain, Menu } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, Menu, shell } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const http = require("http");
@@ -107,6 +107,24 @@ function writeHistory(entries) {
 }
 
 ipcMain.handle("get-history", () => readHistory());
+
+ipcMain.handle("read-file", async (_event, filePath) => {
+  try {
+    const text = fs.readFileSync(filePath, "utf-8");
+    return { ok: true, text };
+  } catch (e) {
+    return { ok: false, error: e.message || String(e) };
+  }
+});
+
+ipcMain.handle("open-path", async (_event, filePath) => {
+  try {
+    await shell.openPath(filePath);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message || String(e) };
+  }
+});
 
 ipcMain.handle("load-openapi", async (_event, payload) => {
   try {
