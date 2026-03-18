@@ -22,18 +22,18 @@
       <section class="panel">
         <h2>실행 설정</h2>
         <div class="grid">
-          <label>
+          <label class="file-field">
             <div class="label-line"><span class="req">*</span> 컬렉션
               <span class="help-tip" data-tip="Postman 컬렉션 JSON 파일을 선택하세요. OpenAPI 사용 시 생략 가능.">?</span>
             </div>
             <input id="collectionFile" type="file" accept=".json" />
           </label>
-          <label>
+          <label class="file-field">
             환경 (선택)
             <span class="help-tip" data-tip="환경(JSON)을 넣으면 변수 값이 자동 적용됩니다.">?</span>
             <input id="environmentFile" type="file" accept=".json" />
           </label>
-          <label class="wide">
+          <label class="wide file-field">
             OpenAPI/Swagger (선택)
             <span class="help-tip" data-tip="OpenAPI JSON/YAML 파일 또는 URL로 컬렉션을 생성합니다. 컬렉션 파일 대신 사용할 수 있습니다.">?</span>
             <div class="row wrap">

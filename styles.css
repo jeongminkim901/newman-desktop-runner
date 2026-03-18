@@ -81,6 +81,15 @@ label {
   font-size: 13px;
 }
 
+label.file-field {
+  pointer-events: none;
+}
+
+label.file-field input,
+label.file-field .help-tip {
+  pointer-events: auto;
+}
+
 label:not(.toggle) > input,
 label:not(.toggle) > textarea,
 label:not(.toggle) > select,
