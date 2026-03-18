@@ -571,7 +571,8 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     failedRequestNames,
     exploreInclude,
     exploreExclude,
-    methodVariants
+    methodVariants,
+    hardMode
   } = payload;
 
   if (!collectionPath && !openapiPath && !openapiUrl) {
@@ -696,8 +697,8 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
         ? buildSchemaVariants(schemaEntry.requestSchema, bodyInfo.json, maxVariants)
         : [];
     const securityVariants = buildSecurityVariants(
-      { queryParams, bodyJson: bodyInfo, schema: schemaEntry?.requestSchema },
-      2
+      { queryParams, bodyJson: bodyInfo, schema: schemaEntry?.requestSchema, mode: hardMode ? "hard" : "basic" },
+      hardMode ? 4 : 2
     );
     const variants = [ ...baseVariants, ...schemaVariants, ...securityVariants ].slice(0, variantCap);
 

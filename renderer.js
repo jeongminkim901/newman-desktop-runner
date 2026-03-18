@@ -33,6 +33,7 @@ const exploreCustomJson = el("exploreCustomJson");
 const exploreFailedOnly = el("exploreFailedOnly");
 const exploreTemplate = el("exploreTemplate");
 const exploreMethodVariants = el("exploreMethodVariants");
+const exploreHardMode = el("exploreHardMode");
 const exploreIgnoreTls = el("exploreIgnoreTls");
 const exploreInclude = el("exploreInclude");
 const exploreExclude = el("exploreExclude");
@@ -809,6 +810,7 @@ runBtn.addEventListener("click", async () => {
     ignoreTls: !!exploreIgnoreTls?.checked,
     failedOnly: !!exploreFailedOnly?.checked,
     methodVariants: !!exploreMethodVariants?.checked,
+    hardMode: !!exploreHardMode?.checked,
     failedRequestNames,
     exploreInclude: exploreInclude?.value?.trim(),
     exploreExclude: exploreExclude?.value?.trim(),
