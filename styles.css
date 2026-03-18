@@ -86,6 +86,8 @@ label.file-field {
 }
 
 label.file-field input,
+label.file-field button,
+label.file-field select,
 label.file-field .help-tip {
   pointer-events: auto;
 }
