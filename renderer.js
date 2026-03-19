@@ -1,4 +1,4 @@
-ï»¿const el = (id) => document.getElementById(id);
+const el = (id) => document.getElementById(id);
 
 const collectionInput = el("collectionFile");
 const openapiFileInput = el("openapiFile");
@@ -216,12 +216,12 @@ function validateInputs(payload, isExplore) {
   setError(collectionInput, missingSource);
   setError(openapiFileInput, missingSource);
   setError(openapiUrlInput, missingSource);
-  setErrorText(collectionInput, missingSource ? "ì»¬ë ‰ì…˜ íŒŒì¼ ë˜ëŠ” OpenAPI URLì´ í•„ìš”í•©ë‹ˆë‹¤." : "");
-  setErrorText(openapiUrlInput, missingSource ? "OpenAPI URL ë˜ëŠ” íŒŒì¼ì„ ì…ë ¥í•˜ì„¸ìš”." : "");
+  setErrorText(collectionInput, missingSource ? "ÄÃ·º¼Ç ÆÄÀÏ ¶Ç´Â OpenAPI URLÀÌ ÇÊ¿äÇÕ´Ï´Ù." : "");
+  setErrorText(openapiUrlInput, missingSource ? "OpenAPI URL ¶Ç´Â ÆÄÀÏÀ» ÀÔ·ÂÇÏ¼¼¿ä." : "");
 
   if (!payload.outputDir) {
     setError(outputDirInput, true);
-    setErrorText(outputDirInput, "ì¶œë ¥ í´ë”ë¥¼ ì„ íƒí•˜ì„¸ìš”.");
+    setErrorText(outputDirInput, "Ãâ·Â Æú´õ¸¦ ¼±ÅÃÇÏ¼¼¿ä.");
     ok = false;
   } else {
     setError(outputDirInput, false);
@@ -231,7 +231,7 @@ function validateInputs(payload, isExplore) {
   if (isExplore) {
     if (!payload.useSelectedRequests && !payload.selectedRequestNames.length) {
       setError(collectionSearch, true);
-      setErrorText(collectionSearch, "íƒìƒ‰í•  ìš”ì²­ì„ ì„ íƒí•˜ì„¸ìš”.");
+      setErrorText(collectionSearch, "Å½»öÇÒ ¿äÃ»À» ¼±ÅÃÇÏ¼¼¿ä.");
       ok = false;
     } else {
       setError(collectionSearch, false);
@@ -242,7 +242,7 @@ function validateInputs(payload, isExplore) {
       setError(repHtml, true);
       setError(repJson, true);
       setError(repCli, true);
-      setErrorText(repHtml, "ë¦¬í¬í„°ë¥¼ ìµœì†Œ 1ê°œ ì„ íƒí•˜ì„¸ìš”.");
+      setErrorText(repHtml, "¸®Æ÷ÅÍ¸¦ ÃÖ¼Ò 1°³ ¼±ÅÃÇÏ¼¼¿ä.");
       ok = false;
     } else {
       setError(repHtml, false);
@@ -259,7 +259,7 @@ const setOpenApiActive = (active) => {
   openapiActive = active;
   if (collectionInput) collectionInput.disabled = active;
   if (!active && openapiServerSelect) {
-    openapiServerSelect.innerHTML = `<option value="">OpenAPIë¥¼ ë¨¼ì € ë¶ˆëŸ¬ì˜¤ì„¸ìš”</option>`;
+    openapiServerSelect.innerHTML = `<option value="">OpenAPI¸¦ ¸ÕÀú ºÒ·¯¿À¼¼¿ä</option>`;
     openapiServerSelect.disabled = true;
   }
   if (!active && openapiServerCustom) {
@@ -288,7 +288,7 @@ collectionInput.addEventListener("change", () => {
       selection = new Set(flattenRequests(collectionCache.item || []));
       renderCollectionTree();
     } catch {
-      collectionTree.innerHTML = "ì»¬ë ‰ì…˜ JSON íŒŒì‹± ì‹¤íŒ¨";
+      collectionTree.innerHTML = "ÄÃ·º¼Ç JSON ÆÄ½Ì ½ÇÆĞ";
     }
   };
   reader.readAsText(file);
@@ -299,10 +299,10 @@ if (loadOpenapiBtn) {
     const file = openapiFileInput?.files?.[0];
     const openapiUrl = openapiUrlInput?.value?.trim();
     if (!file && !openapiUrl) {
-      statusLine.textContent = "OpenAPI íŒŒì¼ ë˜ëŠ” URLì„ ì…ë ¥í•˜ì„¸ìš”.";
+      statusLine.textContent = "OpenAPI ÆÄÀÏ ¶Ç´Â URLÀ» ÀÔ·ÂÇÏ¼¼¿ä.";
       return;
     }
-    statusLine.textContent = "OpenAPI ë¶ˆëŸ¬ì˜¤ëŠ” ì¤‘...";
+    statusLine.textContent = "OpenAPI ºÒ·¯¿À´Â Áß...";
     const res = await window.api.loadOpenApi({
       openapiPath: file?.path,
       openapiUrl,
@@ -318,7 +318,7 @@ if (loadOpenapiBtn) {
         const servers = Array.isArray(res.servers) ? res.servers : [];
         const options = servers.length
           ? servers.map((url) => `<option value="${url}">${url}</option>`).join("")
-          : `<option value="">(ì„œë²„ ëª©ë¡ ì—†ìŒ)</option>`;
+          : `<option value="">(¼­¹ö ¸ñ·Ï ¾øÀ½)</option>`;
         openapiServerSelect.innerHTML = options;
         openapiServerSelect.disabled = false;
         try {
@@ -330,9 +330,9 @@ if (loadOpenapiBtn) {
           // ignore
         }
       }
-      statusLine.textContent = "OpenAPI ë¡œë“œ ì™„ë£Œ";
+      statusLine.textContent = "OpenAPI ·Îµå ¿Ï·á";
     } else {
-      statusLine.textContent = `OpenAPI ë¡œë“œ ì‹¤íŒ¨: ${res?.error || "ì•Œ ìˆ˜ ì—†ìŒ"}`;
+      statusLine.textContent = `OpenAPI ·Îµå ½ÇÆĞ: ${res?.error || "¾Ë ¼ö ¾øÀ½"}`;
     }
   });
 }
@@ -364,7 +364,7 @@ if (clearSavedBtn) {
     if (tokenInput) tokenInput.value = "";
     if (openapiServerSelect) openapiServerSelect.value = "";
     if (openapiServerCustom) openapiServerCustom.value = "";
-    statusLine.textContent = "ì €ì¥ê°’ì„ ì§€ì› ìŠµë‹ˆë‹¤.";
+    statusLine.textContent = "ÀúÀå°ªÀ» Áö¿ü½À´Ï´Ù.";
   });
 }
 if (openapiServerSelect) {
@@ -470,12 +470,12 @@ function renderHistory() {
     badge.textContent = item.label ? item.label.toUpperCase() : "RUN";
     title.appendChild(badge);
     const statusText = document.createElement("span");
-    statusText.textContent = `${item.id} Â· ${item.ok ? "OK" : "FAIL"}`;
+    statusText.textContent = `${item.id} ¡¤ ${item.ok ? "OK" : "FAIL"}`;
     title.appendChild(statusText);
 
     const meta = document.createElement("div");
     meta.className = "meta";
-    meta.textContent = `${item.startedAt} â†’ ${item.endedAt}`;
+    meta.textContent = `${item.startedAt} ¡æ ${item.endedAt}`;
 
     const badges = document.createElement("div");
     badges.className = "badges";
@@ -489,15 +489,15 @@ function renderHistory() {
     const links = document.createElement("div");
     links.className = "links";
     if (item.reportHtml) {
-      links.innerHTML += `<button data-path="${item.reportHtml}">HTML ì—´ê¸°</button>`;
-      links.innerHTML += `<button data-preview-html="${item.reportHtml}">HTML ë¯¸ë¦¬ë³´ê¸°</button>`;
+      links.innerHTML += `<button data-path="${item.reportHtml}">HTML ¿­±â</button>`;
+      links.innerHTML += `<button data-preview-html="${item.reportHtml}">HTML ¹Ì¸®º¸±â</button>`;
     }
     if (item.reportJson) {
-      links.innerHTML += `<button data-path="${item.reportJson}">JSON ì—´ê¸°</button>`;
-      links.innerHTML += `<button data-preview-json="${item.reportJson}">JSON ë¯¸ë¦¬ë³´ê¸°</button>`;
+      links.innerHTML += `<button data-path="${item.reportJson}">JSON ¿­±â</button>`;
+      links.innerHTML += `<button data-preview-json="${item.reportJson}">JSON ¹Ì¸®º¸±â</button>`;
     }
     if (item.logPath) {
-      links.innerHTML += `<button data-path="${item.logPath}">ë¡œê·¸ ì—´ê¸°</button>`;
+      links.innerHTML += `<button data-path="${item.logPath}">·Î±× ¿­±â</button>`;
     }
 
     links.querySelectorAll("button").forEach((btn) => {
@@ -574,8 +574,8 @@ async function loadHtmlPreview(htmlPath) {
     htmlSoloPreview.srcdoc = res.text;
     return;
   }
-  htmlPreview.srcdoc = `<pre>HTML ë¡œë“œ ì‹¤íŒ¨: ${res?.error || "ì•Œ ìˆ˜ ì—†ìŒ"}</pre>`;
-  htmlSoloPreview.srcdoc = `<pre>HTML ë¡œë“œ ì‹¤íŒ¨: ${res?.error || "ì•Œ ìˆ˜ ì—†ìŒ"}</pre>`;
+  htmlPreview.srcdoc = `<pre>HTML ·Îµå ½ÇÆĞ: ${res?.error || "¾Ë ¼ö ¾øÀ½"}</pre>`;
+  htmlSoloPreview.srcdoc = `<pre>HTML ·Îµå ½ÇÆĞ: ${res?.error || "¾Ë ¼ö ¾øÀ½"}</pre>`;
 }
 
 function showHtmlPreview(htmlPath, jsonPath) {
@@ -596,8 +596,8 @@ async function showJsonPreview(jsonPath, htmlPath) {
     jsonSoloPreview.textContent = res.text;
     loadJsonSummary(jsonPath, res.text);
   } else {
-    jsonPreview.textContent = `JSON ë¡œë“œ ì‹¤íŒ¨: ${res?.error || "ì•Œ ìˆ˜ ì—†ìŒ"}`;
-    jsonSoloPreview.textContent = `JSON ë¡œë“œ ì‹¤íŒ¨: ${res?.error || "ì•Œ ìˆ˜ ì—†ìŒ"}`;
+    jsonPreview.textContent = `JSON ·Îµå ½ÇÆĞ: ${res?.error || "¾Ë ¼ö ¾øÀ½"}`;
+    jsonSoloPreview.textContent = `JSON ·Îµå ½ÇÆĞ: ${res?.error || "¾Ë ¼ö ¾øÀ½"}`;
   }
   if (htmlPath) {
     await loadHtmlPreview(htmlPath);
@@ -648,10 +648,10 @@ async function loadJsonSummary(jsonPath, cachedText) {
       const securityWarnCount = data.summary?.securityWarnCount ?? 0;
       const variantCountByType = data.summary?.variantCountByType || {};
       const variantLine = Object.keys(variantCountByType).length
-        ? ` Â· ë³€í˜•(${Object.entries(variantCountByType).map(([k, v]) => `${k}:${v}`).join(", ")})`
+        ? ` ¡¤ º¯Çü(${Object.entries(variantCountByType).map(([k, v]) => `${k}:${v}`).join(", ")})`
         : "";
 
-      previewSummary.textContent = `íƒìƒ‰ ì‹¤í–‰: ${results.length} Â· ì‹¤íŒ¨: ${failed.length} Â· ìŠ¤í‚¤ë§ˆ ì‹¤íŒ¨: ${schemaFailCount} Â· ì‹œë§¨í‹± ì‹¤íŒ¨: ${semanticFailCount} Â· ë³´ì•ˆ ê²½ê³ : ${securityWarnCount}${variantLine}`;
+      previewSummary.textContent = `Å½»ö ½ÇÇà: ${results.length} ¡¤ ½ÇÆĞ: ${failed.length} ¡¤ ½ºÅ°¸¶ ½ÇÆĞ: ${schemaFailCount} ¡¤ ½Ã¸ÇÆ½ ½ÇÆĞ: ${semanticFailCount} ¡¤ º¸¾È °æ°í: ${securityWarnCount}${variantLine}`;
       summaryTotal.textContent = String(results.length);
       summaryFailed.textContent = String(failed.length);
       summaryAvg.textContent = String(avg);
@@ -666,7 +666,7 @@ async function loadJsonSummary(jsonPath, cachedText) {
       const hasAssertionError = assertions.some((a) => a.error);
       return hasAssertionError || ex.error;
     });
-    previewSummary.textContent = `ì‹¤í–‰: ${executions.length} Â· ì‹¤íŒ¨: ${failed.length}`;
+    previewSummary.textContent = `½ÇÇà: ${executions.length} ¡¤ ½ÇÆĞ: ${failed.length}`;
 
     const times = executions.map((ex) => ex.response?.responseTime || 0);
     const avg = times.length ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : 0;
@@ -686,7 +686,7 @@ async function loadJsonSummary(jsonPath, cachedText) {
 
     renderFailureList(failed, showReqRes.checked);
   } catch (e) {
-    previewSummary.textContent = `JSON íŒŒì‹± ì‹¤íŒ¨: ${e.message}`;
+    previewSummary.textContent = `JSON ÆÄ½Ì ½ÇÆĞ: ${e.message}`;
   }
 }
 
@@ -694,7 +694,7 @@ function renderFailureList(failed, showDetails) {
   failureList.innerHTML = "";
   if (!failed.length) {
     const li = document.createElement("li");
-    li.textContent = "ì‹¤íŒ¨ ì—†ìŒ.";
+    li.textContent = "½ÇÆĞ ¾øÀ½.";
     failureList.appendChild(li);
     return;
   }
@@ -704,7 +704,7 @@ function renderFailureList(failed, showDetails) {
     const method = ex?.item?.request?.method || "-";
     const url = ex?.item?.request?.url?.raw || ex?.item?.request?.url || "-";
     const status = ex?.response?.code || "-";
-    const err = ex?.error?.message || (ex?.assertions || []).find((a) => a.error)?.error?.message || "ê²€ì¦ ì‹¤íŒ¨";
+    const err = ex?.error?.message || (ex?.assertions || []).find((a) => a.error)?.error?.message || "°ËÁõ ½ÇÆĞ";
     const req = ex?.request || ex?.item?.request;
     const res = ex?.response;
     const reqJson = req ? JSON.stringify(req, null, 2) : "";
@@ -727,7 +727,7 @@ function renderFailureList(failed, showDetails) {
         <div class="url">${url}</div>
         <div>${err}</div>
       </div>
-      ${showDetails ? `<pre class="reqres">ìš”ì²­\n${reqJson}</pre><pre class="reqres">ì‘ë‹µ\n${resJson}</pre>` : ""}
+      ${showDetails ? `<pre class="reqres">¿äÃ»\n${reqJson}</pre><pre class="reqres">ÀÀ´ä\n${resJson}</pre>` : ""}
     `;
     failureList.appendChild(li);
   });
@@ -737,7 +737,7 @@ function renderExploreFailureList(failed, showDetails) {
   failureList.innerHTML = "";
   if (!failed.length) {
     const li = document.createElement("li");
-    li.textContent = "ì‹¤íŒ¨ ì—†ìŒ.";
+    li.textContent = "½ÇÆĞ ¾øÀ½.";
     failureList.appendChild(li);
     return;
   }
@@ -745,8 +745,8 @@ function renderExploreFailureList(failed, showDetails) {
   const methodVariants = failed.filter((item) => item.variantType === "method" || item.isMethodVariant);
   const otherVariants = failed.filter((item) => !(item.variantType === "method" || item.isMethodVariant));
   const sections = [
-    { title: "Method ë³€í˜•", list: methodVariants },
-    { title: "ê¸°íƒ€ ë³€í˜•", list: otherVariants }
+    { title: "Method º¯Çü", list: methodVariants },
+    { title: "±âÅ¸ º¯Çü", list: otherVariants }
   ];
 
   sections.forEach((section) => {
@@ -772,9 +772,9 @@ function renderExploreFailureList(failed, showDetails) {
         </div>
         <div class="row">
           <div class="url">${item.url || ""}</div>
-          <div>${item.variant || ""} ${err ? "Â· " + err : ""}</div>
+          <div>${item.variant || ""} ${err ? "¡¤ " + err : ""}</div>
         </div>
-        ${showDetails ? `<pre class="reqres">ìš”ì²­\n${item.request?.body || ""}</pre><pre class="reqres">ì‘ë‹µ\n${item.response?.body || ""}</pre>` : ""}
+        ${showDetails ? `<pre class="reqres">¿äÃ»\n${item.request?.body || ""}</pre><pre class="reqres">ÀÀ´ä\n${item.response?.body || ""}</pre>` : ""}
       `;
       failureList.appendChild(li);
     });
@@ -833,7 +833,7 @@ window.addEventListener("mousemove", (e) => {
 
 runBtn.addEventListener("click", async () => {
   logBox.innerHTML = "";
-  statusLine.textContent = "ì‹¤í–‰ ì¤‘...";
+  statusLine.textContent = "½ÇÇà Áß...";
 
   const reporters = [];
   if (repCli.checked) reporters.push("cli");
@@ -843,7 +843,7 @@ runBtn.addEventListener("click", async () => {
   let failedRequestNames = [];
   if (exploreEnabled?.checked && exploreFailedOnly?.checked) {
     if (!lastPreviewJsonPath) {
-      statusLine.textContent = "ì‹¤íŒ¨ë§Œ ì¬íƒìƒ‰í•˜ë ¤ë©´ ë¨¼ì € JSON ë¯¸ë¦¬ë³´ê¸°ë¥¼ ì—´ì–´ì£¼ì„¸ìš”.";
+      statusLine.textContent = "½ÇÆĞ¸¸ ÀçÅ½»öÇÏ·Á¸é ¸ÕÀú JSON ¹Ì¸®º¸±â¸¦ ¿­¾îÁÖ¼¼¿ä.";
       return;
     }
     try {
@@ -851,11 +851,11 @@ runBtn.addEventListener("click", async () => {
       const text = await res.text();
       failedRequestNames = extractFailedNamesFromJson(text);
       if (!failedRequestNames.length) {
-        statusLine.textContent = "ë§ˆì§€ë§‰ JSON ë¯¸ë¦¬ë³´ê¸°ì— ì‹¤íŒ¨ ìš”ì²­ì´ ì—†ìŠµë‹ˆë‹¤.";
+        statusLine.textContent = "¸¶Áö¸· JSON ¹Ì¸®º¸±â¿¡ ½ÇÆĞ ¿äÃ»ÀÌ ¾ø½À´Ï´Ù.";
         return;
       }
     } catch (e) {
-    statusLine.textContent = `JSON ë¯¸ë¦¬ë³´ê¸° ì½ê¸° ì‹¤íŒ¨: ${e.message}`;
+    statusLine.textContent = `JSON ¹Ì¸®º¸±â ÀĞ±â ½ÇÆĞ: ${e.message}`;
       return;
     }
   }
@@ -864,7 +864,7 @@ runBtn.addEventListener("click", async () => {
     collectionPath: collectionInput.files[0]?.path,
     openapiPath: openapiFileInput?.files?.[0]?.path,
     openapiUrl: openapiUrlInput?.value?.trim(),
-    openapiIgnoreTls: !!openapiIgnoreTls?.checked,
+    openapiIgnoreTls: !!openapiIgnoreTls?.checked || !!newmanIgnoreTls?.checked || !!exploreIgnoreTls?.checked,
     openapiServerUrl: openapiServerCustom?.value?.trim() || openapiServerSelect?.value?.trim(),
     environmentPath: environmentInput.files[0]?.path,
     ip: ipInput.value.trim(),
@@ -897,20 +897,20 @@ runBtn.addEventListener("click", async () => {
 
   const isExplore = !!exploreEnabled?.checked;
   if (!validateInputs(payload, isExplore)) {
-    statusLine.textContent = "ì…ë ¥ê°’ì„ í™•ì¸í•˜ì„¸ìš”. ë¹¨ê°„ í…Œë‘ë¦¬ í•­ëª©ì´ í•„ìš”í•©ë‹ˆë‹¤.";
+    statusLine.textContent = "ÀÔ·Â°ªÀ» È®ÀÎÇÏ¼¼¿ä. »¡°£ Å×µÎ¸® Ç×¸ñÀÌ ÇÊ¿äÇÕ´Ï´Ù.";
     return;
   }
 
   if (!payload.collectionPath && !payload.openapiPath && !payload.openapiUrl) {
-    statusLine.textContent = "ì»¬ë ‰ì…˜ ë˜ëŠ” OpenAPIê°€ í•„ìš”í•©ë‹ˆë‹¤.";
+    statusLine.textContent = "ÄÃ·º¼Ç ¶Ç´Â OpenAPI°¡ ÇÊ¿äÇÕ´Ï´Ù.";
     return;
   }
   if (!payload.outputDir) {
-    statusLine.textContent = "ì¶œë ¥ í´ë”ê°€ í•„ìš”í•©ë‹ˆë‹¤.";
+    statusLine.textContent = "Ãâ·Â Æú´õ°¡ ÇÊ¿äÇÕ´Ï´Ù.";
     return;
   }
   if (!payload.reporters.length && !exploreEnabled?.checked) {
-    statusLine.textContent = "ë¦¬í¬í„°ë¥¼ ìµœì†Œ 1ê°œ ì„ íƒí•˜ì„¸ìš”.";
+    statusLine.textContent = "¸®Æ÷ÅÍ¸¦ ÃÖ¼Ò 1°³ ¼±ÅÃÇÏ¼¼¿ä.";
     return;
   }
 
@@ -919,15 +919,15 @@ runBtn.addEventListener("click", async () => {
     : await window.api.runNewman(payload);
   if (res.ok) {
     if (exploreEnabled?.checked) {
-    statusLine.textContent = `íƒìƒ‰ ì™„ë£Œ. JSON: ${res.reportJson}`;
+    statusLine.textContent = `Å½»ö ¿Ï·á. JSON: ${res.reportJson}`;
     } else {
-      statusLine.textContent = `ì™„ë£Œ. JSON: ${res.reportJson} Â· HTML: ${res.reportHtml}`;
+      statusLine.textContent = `¿Ï·á. JSON: ${res.reportJson} ¡¤ HTML: ${res.reportHtml}`;
     }
     if (res.reportJson) {
       showJsonPreview(res.reportJson, res.reportHtml);
     }
   } else {
-    statusLine.textContent = `ì‹¤íŒ¨: ${res.error}`;
+    statusLine.textContent = `½ÇÆĞ: ${res.error}`;
   }
 
   await refreshHistory();
@@ -940,6 +940,7 @@ filterFail.addEventListener("click", () => setFilter("fail"));
 filterExplore.addEventListener("click", () => setFilter("explore"));
 
 refreshHistory();
+
 
 
 
