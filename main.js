@@ -7,6 +7,8 @@ const newman = require("newman");
 const { request: pwRequest } = require("playwright");
 const openapiToPostman = require("openapi-to-postmanv2");
 const yaml = require("js-yaml");
+
+let activeRun = null;
 const {
   parseVarsJson,
   normalizeCollection,
@@ -127,6 +129,22 @@ ipcMain.handle("open-path", async (_event, filePath) => {
       return { ok: false, error: "파일을 찾을 수 없습니다." };
     }
     await shell.openPath(filePath);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message || String(e) };
+  }
+});
+
+ipcMain.handle("cancel-run", async () => {
+  try {
+    if (!activeRun) return { ok: false, error: "실행 중이 아닙니다." };
+    activeRun.cancelled = true;
+    if (activeRun.type === "newman" && activeRun.runner && typeof activeRun.runner.abort === "function") {
+      activeRun.runner.abort();
+    }
+    if (activeRun.type === "explore" && activeRun.ctx && typeof activeRun.ctx.dispose === "function") {
+      await activeRun.ctx.dispose();
+    }
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e.message || String(e) };
@@ -454,6 +472,7 @@ ipcMain.handle("run-newman", async (_event, payload) => {
   };
 
   const runOnce = (label, overrides) => {
+    activeRun = { type: "newman", cancelled: false, runner: null };
     currentRequests = 0;
     emitProgress(label);
     const runId = `run_${Date.now()}_${label}`;
@@ -501,6 +520,8 @@ ipcMain.handle("run-newman", async (_event, payload) => {
             else process.env.NODE_TLS_REJECT_UNAUTHORIZED = prevTls;
           }
           logStream.end();
+          const wasCancelled = activeRun?.cancelled === true;
+          activeRun = null;
           const jsonExists = fs.existsSync(reportJson);
           const htmlExists = fs.existsSync(reportHtml);
           const endedAt = new Date().toISOString();
@@ -515,16 +536,16 @@ ipcMain.handle("run-newman", async (_event, payload) => {
             logPath,
             startedAt,
             endedAt,
-            ok: !err,
-            error: err ? String(err.message || err) : null,
+            ok: !err && !wasCancelled,
+            error: wasCancelled ? "cancelled" : (err ? String(err.message || err) : null),
             label
           });
           writeHistory(history.slice(0, 200));
 
-          if (err) {
+          if (err || wasCancelled) {
             return resolve({
               ok: false,
-              error: err.message || String(err),
+              error: wasCancelled ? "cancelled" : (err.message || String(err)),
               reportJson: jsonExists ? reportJson : null,
               reportHtml: htmlExists ? reportHtml : null,
               logPath
@@ -539,7 +560,9 @@ ipcMain.handle("run-newman", async (_event, payload) => {
             logPath
           });
         }
-      )
+      );
+      activeRun.runner = runner;
+      runner
         .on("start", () => {
           emitLog(`[start][${label}] running newman...`);
         })
@@ -719,6 +742,7 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
   const variantCountByType = { body: 0, query: 0, method: 0, schema: 0, custom: 0, security: 0 };
 
   const ctx = await pwRequest.newContext({ ignoreHTTPSErrors: !!ignoreTls });
+  activeRun = { type: "explore", cancelled: false, ctx };
   emitLog("[explore] starting exploratory api test...");
   const prevExploreTls = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
   if (ignoreTls) {
@@ -726,6 +750,7 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
   }
 
   for (const item of filteredRequests) {
+    if (activeRun?.cancelled) break;
     const method = (item?.request?.method || "GET").toUpperCase();
     const headers = normalizeHeaderArray(item?.request?.header, varsMap);
     const headersWithAuth = ensureAuthHeader(headers, token);
@@ -771,6 +796,7 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
       variantType = "base",
       schemaContext = schemaEntry
     ) => {
+      if (activeRun?.cancelled) return;
       const methodToUse = methodOverride || method;
       const requestBody = dropBody
         ? ""
@@ -891,8 +917,10 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
       emitProgress();
     };
 
+    if (activeRun?.cancelled) break;
     await runOnce("base", baseUrl, null, null, false, "base");
     for (const variant of variants) {
+      if (activeRun?.cancelled) break;
       if (variant.query) {
         const vUrl = buildUrlWithQuery(urlRaw, variant.query);
         await runOnce(variant.label, vUrl, null, null, false, variant.type || "query");
@@ -903,6 +931,7 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     }
 
     if (methodVariants.length) {
+      if (activeRun?.cancelled) break;
       for (const mv of methodVariants) {
         await runOnce(mv.label, baseUrl, null, mv.method, mv.dropBody, "method");
         if (delayMs > 0) await sleep(delayMs);
@@ -911,6 +940,8 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
   }
 
   await ctx.dispose();
+  const wasCancelled = activeRun?.cancelled === true;
+  activeRun = null;
   if (ignoreTls) {
     if (prevExploreTls === undefined) delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
     else process.env.NODE_TLS_REJECT_UNAUTHORIZED = prevExploreTls;
@@ -956,24 +987,26 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     collectionPath,
     environmentPath,
     outputDir,
-    reportJson: jsonExists ? reportJson : null,
-              reportHtml: htmlExists ? reportHtml : null,
+    reportJson,
+    reportHtml,
     logPath,
     startedAt,
     endedAt,
-    ok: failed === 0,
-    error: null,
+    ok: failed === 0 && !wasCancelled,
+    error: wasCancelled ? "cancelled" : null,
     label: "explore"
   });
   writeHistory(history.slice(0, 200));
 
   return {
-    ok: failed === 0,
+    ok: failed === 0 && !wasCancelled,
+    error: wasCancelled ? "cancelled" : null,
     reportJson,
     logPath,
     summary
   };
 });
+
 
 
 

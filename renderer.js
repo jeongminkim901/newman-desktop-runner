@@ -43,10 +43,17 @@ const repCli = el("repCli");
 const repHtml = el("repHtml");
 const repJson = el("repJson");
 const runBtn = el("runBtn");
+const stopBtn = el("stopBtn");
 const pickDirBtn = el("pickDirBtn");
 const logBox = el("logBox");
 const historyList = el("historyList");
 const statusLine = el("statusLine");
+let isRunning = false;
+const setRunning = (running) => {
+  isRunning = running;
+  if (runBtn) runBtn.disabled = running;
+  if (stopBtn) stopBtn.disabled = !running;
+};
 const tabHtml = el("tabHtml");
 const tabJson = el("tabJson");
 const tabExplore = el("tabExplore");
@@ -536,6 +543,16 @@ function renderHistory() {
   });
 }
 
+if (stopBtn) {
+  stopBtn.addEventListener("click", async () => {
+    if (!isRunning) return;
+    statusLine.textContent = "중지 요청 중...";
+    stopBtn.disabled = true;
+    const res = await window.api.cancelRun();
+    if (!res?.ok) statusLine.textContent = `중지 실패: ${res?.error || "알 수 없음"}`;
+  });
+}
+
 pickDirBtn.addEventListener("click", async () => {
   const dir = await window.api.pickOutputDir();
   if (dir) outputDirInput.value = dir;
@@ -923,6 +940,7 @@ runBtn.addEventListener("click", async () => {
     return;
   }
 
+  setRunning(true);
   const res = exploreEnabled?.checked
     ? await window.api.runExploratory(payload)
     : await window.api.runNewman(payload);
@@ -936,9 +954,10 @@ runBtn.addEventListener("click", async () => {
       showJsonPreview(res.reportJson, res.reportHtml);
     }
   } else {
-    statusLine.textContent = `실패: ${res.error}`;
+    statusLine.textContent = res.error === "cancelled" ? "중지됨" : `실패: ${res.error}`;
   }
 
+  setRunning(false);
   await refreshHistory();
 });
 
@@ -949,6 +968,9 @@ filterFail.addEventListener("click", () => setFilter("fail"));
 filterExplore.addEventListener("click", () => setFilter("explore"));
 
 refreshHistory();
+
+
+
 
 
 

@@ -7,10 +7,14 @@ contextBridge.exposeInMainWorld("api", {
   loadOpenApi: (payload) => ipcRenderer.invoke("load-openapi", payload),
   readFile: (filePath) => ipcRenderer.invoke("read-file", filePath),
   openPath: (filePath) => ipcRenderer.invoke("open-path", filePath),
+  cancelRun: () => ipcRenderer.invoke("cancel-run"),
   getHistory: () => ipcRenderer.invoke("get-history"),
   onRunLog: (cb) => ipcRenderer.on("run-log", (_event, msg) => cb(msg)),
   onRunProgress: (cb) => ipcRenderer.on("run-progress", (_event, data) => cb(data)),
   onOpenHelp: (cb) => ipcRenderer.on("open-help", () => cb())
 });
+
+
+
 
 
