@@ -459,6 +459,10 @@ ipcMain.handle("run-newman", async (_event, payload) => {
       else mergedVars.push(item);
     });
 
+    const prevTls = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+    if (newmanIgnoreTls) {
+      process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+    }
     return new Promise((resolve) => {
       newman.run(
         {
@@ -477,6 +481,10 @@ ipcMain.handle("run-newman", async (_event, payload) => {
           insecure: !!newmanIgnoreTls
         },
         (err, summary) => {
+          if (newmanIgnoreTls) {
+            if (prevTls === undefined) delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+            else process.env.NODE_TLS_REJECT_UNAUTHORIZED = prevTls;
+          }
           logStream.end();
           const endedAt = new Date().toISOString();
           const history = readHistory();
@@ -671,6 +679,10 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
 
   const ctx = await pwRequest.newContext({ ignoreHTTPSErrors: !!ignoreTls });
   emitLog("[explore] starting exploratory api test...");
+  const prevExploreTls = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+  if (ignoreTls) {
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+  }
 
   for (const item of filteredRequests) {
     const method = (item?.request?.method || "GET").toUpperCase();
@@ -862,6 +874,10 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
   }
 
   await ctx.dispose();
+  if (ignoreTls) {
+    if (prevExploreTls === undefined) delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+    else process.env.NODE_TLS_REJECT_UNAUTHORIZED = prevExploreTls;
+  }
   logStream.end();
 
   const endedAt = new Date().toISOString();
