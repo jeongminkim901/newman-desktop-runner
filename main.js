@@ -122,6 +122,10 @@ ipcMain.handle("read-file", async (_event, filePath) => {
 
 ipcMain.handle("open-path", async (_event, filePath) => {
   try {
+    if (!filePath) return { ok: false, error: "경로가 없습니다." };
+    if (!fs.existsSync(filePath)) {
+      return { ok: false, error: "파일을 찾을 수 없습니다." };
+    }
     await shell.openPath(filePath);
     return { ok: true };
   } catch (e) {
@@ -489,6 +493,8 @@ ipcMain.handle("run-newman", async (_event, payload) => {
             else process.env.NODE_TLS_REJECT_UNAUTHORIZED = prevTls;
           }
           logStream.end();
+          const jsonExists = fs.existsSync(reportJson);
+          const htmlExists = fs.existsSync(reportHtml);
           const endedAt = new Date().toISOString();
           const history = readHistory();
           history.unshift({
@@ -496,8 +502,8 @@ ipcMain.handle("run-newman", async (_event, payload) => {
             collectionPath,
             environmentPath,
             outputDir,
-            reportJson,
-            reportHtml,
+            reportJson: jsonExists ? reportJson : null,
+            reportHtml: htmlExists ? reportHtml : null,
             logPath,
             startedAt,
             endedAt,
@@ -511,8 +517,8 @@ ipcMain.handle("run-newman", async (_event, payload) => {
             return resolve({
               ok: false,
               error: err.message || String(err),
-              reportJson,
-              reportHtml,
+              reportJson: jsonExists ? reportJson : null,
+              reportHtml: htmlExists ? reportHtml : null,
               logPath
             });
           }
@@ -520,8 +526,8 @@ ipcMain.handle("run-newman", async (_event, payload) => {
           return resolve({
             ok: true,
             stats: summary.run.stats,
-            reportJson,
-            reportHtml,
+            reportJson: jsonExists ? reportJson : null,
+            reportHtml: htmlExists ? reportHtml : null,
             logPath
           });
         }
@@ -886,6 +892,10 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
   }
   logStream.end();
 
+  const jsonExists = fs.existsSync(reportJson);
+
+  const htmlExists = fs.existsSync(reportHtml);
+
   const endedAt = new Date().toISOString();
   const summary = {
     total: results.length,
@@ -924,8 +934,8 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     collectionPath,
     environmentPath,
     outputDir,
-    reportJson,
-    reportHtml,
+    reportJson: jsonExists ? reportJson : null,
+              reportHtml: htmlExists ? reportHtml : null,
     logPath,
     startedAt,
     endedAt,
@@ -942,5 +952,12 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     summary
   };
 });
+
+
+
+
+
+
+
 
 

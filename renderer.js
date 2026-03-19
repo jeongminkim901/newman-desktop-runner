@@ -501,12 +501,13 @@ function renderHistory() {
     }
 
     links.querySelectorAll("button").forEach((btn) => {
-      btn.addEventListener("click", () => {
+      btn.addEventListener("click", async () => {
         const p = btn.getAttribute("data-path");
         const htmlPath = btn.getAttribute("data-preview-html");
         const jsonPath = btn.getAttribute("data-preview-json");
         if (p) {
-          window.api.openPath(p);
+          const res = await window.api.openPath(p);
+          if (!res?.ok) statusLine.textContent = `열기 실패: ${res?.error || "알 수 없음"}`;
           return;
         }
         if (htmlPath) {
@@ -940,6 +941,8 @@ filterFail.addEventListener("click", () => setFilter("fail"));
 filterExplore.addEventListener("click", () => setFilter("explore"));
 
 refreshHistory();
+
+
 
 
 
