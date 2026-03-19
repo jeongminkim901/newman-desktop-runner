@@ -190,39 +190,65 @@ function setError(elm, on) {
   else elm.classList.remove("input-error");
 }
 
+function setErrorText(elm, message) {
+  if (!elm) return;
+  const container = elm.closest("label") || elm.parentElement;
+  if (!container) return;
+  let msg = container.querySelector(".error-text");
+  if (!message) {
+    if (msg) msg.remove();
+    return;
+  }
+  if (!msg) {
+    msg = document.createElement("div");
+    msg.className = "error-text";
+    container.appendChild(msg);
+  }
+  msg.textContent = message;
+}
+
 function validateInputs(payload, isExplore) {
   let ok = true;
   const hasCollection = !!payload.collectionPath;
   const hasOpenApi = !!payload.openapiPath || !!payload.openapiUrl;
 
-  setError(collectionInput, !hasCollection && !hasOpenApi);
-  setError(openapiFileInput, !hasCollection && !hasOpenApi);
-  setError(openapiUrlInput, !hasCollection && !hasOpenApi);
+  const missingSource = !hasCollection && !hasOpenApi;
+  setError(collectionInput, missingSource);
+  setError(openapiFileInput, missingSource);
+  setError(openapiUrlInput, missingSource);
+  setErrorText(collectionInput, missingSource ? "컬렉션 파일 또는 OpenAPI URL이 필요합니다." : "");
+  setErrorText(openapiUrlInput, missingSource ? "OpenAPI URL 또는 파일을 입력하세요." : "");
 
   if (!payload.outputDir) {
     setError(outputDirInput, true);
+    setErrorText(outputDirInput, "출력 폴더를 선택하세요.");
     ok = false;
   } else {
     setError(outputDirInput, false);
+    setErrorText(outputDirInput, "");
   }
 
   if (isExplore) {
     if (!payload.useSelectedRequests && !payload.selectedRequestNames.length) {
       setError(collectionSearch, true);
+      setErrorText(collectionSearch, "탐색할 요청을 선택하세요.");
       ok = false;
     } else {
       setError(collectionSearch, false);
+      setErrorText(collectionSearch, "");
     }
   } else {
     if (!payload.reporters.length) {
       setError(repHtml, true);
       setError(repJson, true);
       setError(repCli, true);
+      setErrorText(repHtml, "리포터를 최소 1개 선택하세요.");
       ok = false;
     } else {
       setError(repHtml, false);
       setError(repJson, false);
       setError(repCli, false);
+      setErrorText(repHtml, "");
     }
   }
   return ok;

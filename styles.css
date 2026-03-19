@@ -195,6 +195,12 @@ textarea {
   color: rgba(255, 107, 107, 0.8);
 }
 
+.error-text {
+  margin-top: 6px;
+  color: #ff9a9a;
+  font-size: 12px;
+}
+
 .selector {
   display: flex;
   flex-direction: column;
