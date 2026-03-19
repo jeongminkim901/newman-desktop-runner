@@ -184,6 +184,50 @@ function renderCollectionTree() {
   collectionTree.appendChild(buildTree(collectionCache.item || [], filter));
 }
 
+function setError(elm, on) {
+  if (!elm) return;
+  if (on) elm.classList.add("input-error");
+  else elm.classList.remove("input-error");
+}
+
+function validateInputs(payload, isExplore) {
+  let ok = true;
+  const hasCollection = !!payload.collectionPath;
+  const hasOpenApi = !!payload.openapiPath || !!payload.openapiUrl;
+
+  setError(collectionInput, !hasCollection && !hasOpenApi);
+  setError(openapiFileInput, !hasCollection && !hasOpenApi);
+  setError(openapiUrlInput, !hasCollection && !hasOpenApi);
+
+  if (!payload.outputDir) {
+    setError(outputDirInput, true);
+    ok = false;
+  } else {
+    setError(outputDirInput, false);
+  }
+
+  if (isExplore) {
+    if (!payload.useSelectedRequests && !payload.selectedRequestNames.length) {
+      setError(collectionSearch, true);
+      ok = false;
+    } else {
+      setError(collectionSearch, false);
+    }
+  } else {
+    if (!payload.reporters.length) {
+      setError(repHtml, true);
+      setError(repJson, true);
+      setError(repCli, true);
+      ok = false;
+    } else {
+      setError(repHtml, false);
+      setError(repJson, false);
+      setError(repCli, false);
+    }
+  }
+  return ok;
+}
+
 let openapiActive = false;
 const setOpenApiActive = (active) => {
   openapiActive = active;
@@ -824,6 +868,12 @@ runBtn.addEventListener("click", async () => {
     bail: bailInput.checked,
     newmanIgnoreTls: !!newmanIgnoreTls?.checked
   };
+
+  const isExplore = !!exploreEnabled?.checked;
+  if (!validateInputs(payload, isExplore)) {
+    statusLine.textContent = "입력값을 확인하세요. 빨간 테두리 항목이 필요합니다.";
+    return;
+  }
 
   if (!payload.collectionPath && !payload.openapiPath && !payload.openapiUrl) {
     statusLine.textContent = "컬렉션 또는 OpenAPI가 필요합니다.";

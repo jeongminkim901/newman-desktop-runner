@@ -186,6 +186,15 @@ textarea {
   margin-top: 6px;
 }
 
+.input-error {
+  border: 1px solid #ff6b6b !important;
+  box-shadow: 0 0 0 2px rgba(255, 107, 107, 0.2);
+}
+
+.input-error::placeholder {
+  color: rgba(255, 107, 107, 0.8);
+}
+
 .selector {
   display: flex;
   flex-direction: column;
