@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require("electron");
+﻿const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("api", {
   pickOutputDir: () => ipcRenderer.invoke("pick-output-dir"),
@@ -9,5 +9,8 @@ contextBridge.exposeInMainWorld("api", {
   openPath: (filePath) => ipcRenderer.invoke("open-path", filePath),
   getHistory: () => ipcRenderer.invoke("get-history"),
   onRunLog: (cb) => ipcRenderer.on("run-log", (_event, msg) => cb(msg)),
+  onRunProgress: (cb) => ipcRenderer.on("run-progress", (_event, data) => cb(data)),
   onOpenHelp: (cb) => ipcRenderer.on("open-help", () => cb())
 });
+
+

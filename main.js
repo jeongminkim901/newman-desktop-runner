@@ -142,18 +142,18 @@ ipcMain.handle("load-openapi", async (_event, payload) => {
   }
 });
 
-function readEnvVars(environmentPath) {
-  if (!environmentPath) return [];
-  try {
-    const raw = fs.readFileSync(environmentPath, "utf-8");
-    const obj = JSON.parse(raw);
-    const values = Array.isArray(obj?.values) ? obj.values : Array.isArray(obj?.variables) ? obj.variables : [];
-    return values
-      .filter((v) => v && v.enabled !== false)
-      .map((v) => ({ key: String(v.key), value: String(v.value ?? "") }));
-  } catch {
-    return [];
-  }
+
+
+function countRequests(collectionObj) {
+  const walk = (items = []) => {
+    let total = 0;
+    items.forEach((it) => {
+      if (Array.isArray(it.item)) total += walk(it.item);
+      else total += 1;
+    });
+    return total;
+  };
+  return walk(collectionObj?.item || []);
 }
 
 function fetchUrl(url, ignoreTls) {
@@ -447,7 +447,15 @@ ipcMain.handle("run-newman", async (_event, payload) => {
     return { ok: false, error: e.message || String(e) };
   }
 
+  const totalRequests = countRequests(baseCollection) * (iterationCount || 1);
+  let currentRequests = 0;
+  const emitProgress = (label) => {
+    mainWindow.webContents.send('run-progress', { type: 'newman', label, current: currentRequests, total: totalRequests });
+  };
+
   const runOnce = (label, overrides) => {
+    currentRequests = 0;
+    emitProgress(label);
     const runId = `run_${Date.now()}_${label}`;
     const reportJson = path.join(outputDir, `${runId}.json`);
     const reportHtml = path.join(outputDir, `${runId}.html`);
@@ -535,8 +543,10 @@ ipcMain.handle("run-newman", async (_event, payload) => {
         .on("start", () => {
           emitLog(`[start][${label}] running newman...`);
         })
-        .on("request", (_err, args) => {
+         .on("request", (_err, args) => {
           if (!args) return;
+          currentRequests += 1;
+          emitProgress(label);
           const method = args.item?.request?.method || "-";
           const url = args.request?.url?.toString?.() || args.item?.request?.url?.raw || "-";
           emitLog(`[${label}] ${method} ${url}`);
@@ -649,6 +659,18 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
   const includeFilters = parseFilter(exploreInclude);
   const excludeFilters = parseFilter(exploreExclude);
   const allowMethodVariants = methodVariants !== false;
+  const buildMethodVariants = (methodName) => {
+    const list = [];
+    if (methodName === "GET" || methodName === "HEAD") {
+      list.push({ method: "POST", label: `method:${methodName}->POST`, dropBody: true });
+    } else if ([ "POST", "PUT", "PATCH" ].includes(methodName)) {
+      list.push({ method: "GET", label: `method:${methodName}->GET`, dropBody: true });
+      list.push({ method: "DELETE", label: `method:${methodName}->DELETE`, dropBody: true });
+    } else if (methodName === "DELETE") {
+      list.push({ method: "GET", label: `method:${methodName}->GET`, dropBody: true });
+    }
+    return list;
+  };
   const matchAny = (name, filters) =>
     filters.some((f) => name.toLowerCase().includes(f.toLowerCase()));
   const filteredRequests = requests.filter((req) => {
@@ -667,6 +689,13 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     logStream.write(line + "\n");
     mainWindow.webContents.send("run-log", line);
   };
+
+  let progressTotal = 0;
+  let progressCurrent = 0;
+  const emitProgress = () => {
+    mainWindow.webContents.send("run-progress", { type: "explore", current: progressCurrent, total: progressTotal });
+  };
+  emitProgress();
 
   const maxVariants = Math.max(1, Math.min(5, Number(variantsPerRequest || 3)));
   const delayMs = Number.isFinite(Number(exploreDelayMs)) ? Number(exploreDelayMs) : 300;
@@ -728,6 +757,10 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
       hardMode ? 4 : 2
     );
     const variants = [ ...baseVariants, ...schemaVariants, ...securityVariants ].slice(0, variantCap);
+
+    const methodVariants = allowMethodVariants ? buildMethodVariants(method) : [];
+    progressTotal += 1 + variants.length + methodVariants.length;
+    emitProgress();
 
     const runOnce = async (
       variantLabel,
@@ -854,6 +887,8 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
         }
       });
       emitLog(`[explore] ${methodToUse} ${url} => ${status || "ERR"} ${variantLabel}`);
+      progressCurrent += 1;
+      emitProgress();
     };
 
     await runOnce("base", baseUrl, null, null, false, "base");
@@ -867,17 +902,7 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
       if (delayMs > 0) await sleep(delayMs);
     }
 
-    if (allowMethodVariants) {
-      const methodVariants = [];
-      if (method === "GET" || method === "HEAD") {
-        methodVariants.push({ method: "POST", label: `method:${method}->POST`, dropBody: true });
-      } else if ([ "POST", "PUT", "PATCH" ].includes(method)) {
-        methodVariants.push({ method: "GET", label: `method:${method}->GET`, dropBody: true });
-        methodVariants.push({ method: "DELETE", label: `method:${method}->DELETE`, dropBody: true });
-      } else if (method === "DELETE") {
-        methodVariants.push({ method: "GET", label: `method:${method}->GET`, dropBody: true });
-      }
-
+    if (methodVariants.length) {
       for (const mv of methodVariants) {
         await runOnce(mv.label, baseUrl, null, mv.method, mv.dropBody, "method");
         if (delayMs > 0) await sleep(delayMs);
@@ -892,9 +917,6 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
   }
   logStream.end();
 
-  const jsonExists = fs.existsSync(reportJson);
-
-  const htmlExists = fs.existsSync(reportHtml);
 
   const endedAt = new Date().toISOString();
   const summary = {
@@ -952,6 +974,19 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     summary
   };
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

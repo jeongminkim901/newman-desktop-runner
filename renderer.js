@@ -428,6 +428,14 @@ function appendLog(line) {
 }
 
 window.api.onRunLog((msg) => appendLog(msg));
+
+window.api.onRunProgress((data) => {
+  if (!data || !data.total) return;
+  const pct = Math.min(100, Math.max(0, Math.floor((data.current / data.total) * 100)));
+  const label = data.label ? `${data.label} ` : "";
+  const typeLabel = data.type === "explore" ? "탐색" : "실행";
+  statusLine.textContent = `${typeLabel} ${label}${data.current}/${data.total} (${pct}%)`;
+});
 window.api.onOpenHelp(() => openHelpModal());
 
 loadSavedAuth();
@@ -941,6 +949,8 @@ filterFail.addEventListener("click", () => setFilter("fail"));
 filterExplore.addEventListener("click", () => setFilter("explore"));
 
 refreshHistory();
+
+
 
 
 
