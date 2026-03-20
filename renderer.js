@@ -860,6 +860,7 @@ window.addEventListener("mousemove", (e) => {
 runBtn.addEventListener("click", async () => {
   logBox.innerHTML = "";
   statusLine.textContent = "실행 중...";
+  appendLog("[ui] 실행 시작");
 
   const reporters = [];
   if (repCli.checked) reporters.push("cli");
@@ -957,6 +958,7 @@ runBtn.addEventListener("click", async () => {
     statusLine.textContent = res.error === "cancelled" ? "중지됨" : `실패: ${res.error}`;
   }
 
+  appendLog(res.error === "cancelled" ? "[ui] 중지됨" : "[ui] 실행 종료");
   setRunning(false);
   await refreshHistory();
 });
@@ -968,6 +970,7 @@ filterFail.addEventListener("click", () => setFilter("fail"));
 filterExplore.addEventListener("click", () => setFilter("explore"));
 
 refreshHistory();
+
 
 
 

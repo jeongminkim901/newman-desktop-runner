@@ -485,6 +485,7 @@ ipcMain.handle("run-newman", async (_event, payload) => {
       logStream.write(line + "\n");
       mainWindow.webContents.send("run-log", line);
     };
+    emitLog(`[start][${label}] preparing...`);
 
     const mergedVars = [ ...envVars ];
     overrides.forEach((item) => {
@@ -751,6 +752,7 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
 
   for (const item of filteredRequests) {
     if (activeRun?.cancelled) break;
+    emitLog(`[explore] running ${item._fullName || item.name || "Request"}...`);
     const method = (item?.request?.method || "GET").toUpperCase();
     const headers = normalizeHeaderArray(item?.request?.header, varsMap);
     const headersWithAuth = ensureAuthHeader(headers, token);
@@ -1006,6 +1008,7 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     summary
   };
 });
+
 
 
 
