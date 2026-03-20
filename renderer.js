@@ -226,6 +226,19 @@ function validateInputs(payload, isExplore) {
   setErrorText(collectionInput, missingSource ? "컬렉션 파일 또는 OpenAPI URL이 필요합니다." : "");
   setErrorText(openapiUrlInput, missingSource ? "OpenAPI URL 또는 파일을 입력하세요." : "");
 
+  const serverValue =
+    (openapiServerCustom?.value || "").trim() || (openapiServerSelect?.value || "").trim();
+  if (hasOpenApi && !serverValue) {
+    setError(openapiServerSelect, true);
+    setError(openapiServerCustom, true);
+    setErrorText(openapiServerSelect, "OpenAPI 서버 URL을 선택/입력하세요.");
+    ok = false;
+  } else {
+    setError(openapiServerSelect, false);
+    setError(openapiServerCustom, false);
+    setErrorText(openapiServerSelect, "");
+  }
+
   if (!payload.outputDir) {
     setError(outputDirInput, true);
     setErrorText(outputDirInput, "출력 폴더를 선택하세요.");
@@ -973,6 +986,7 @@ filterFail.addEventListener("click", () => setFilter("fail"));
 filterExplore.addEventListener("click", () => setFilter("explore"));
 
 refreshHistory();
+
 
 
 

@@ -569,8 +569,12 @@ ipcMain.handle("run-newman", async (_event, payload) => {
         }
       );
       activeRun.runner = runner;
+      const startTimer = setTimeout(() => {
+        emitLog(`[start][${label}] still waiting for start...`);
+      }, 5000);
       runner
         .on("start", () => {
+          clearTimeout(startTimer);
           emitLog(`[start][${label}] running newman...`);
         })
          .on("request", (_err, args) => {
@@ -1015,6 +1019,7 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     summary
   };
 });
+
 
 
 
