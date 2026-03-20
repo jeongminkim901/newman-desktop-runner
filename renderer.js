@@ -228,10 +228,11 @@ function validateInputs(payload, isExplore) {
 
   const serverValue =
     (openapiServerCustom?.value || "").trim() || (openapiServerSelect?.value || "").trim();
-  if (hasOpenApi && !serverValue) {
+  const requireServer = hasOpenApi && openapiActive && openapiServers.length > 0;
+  if (requireServer && !serverValue) {
     setError(openapiServerSelect, true);
     setError(openapiServerCustom, true);
-    setErrorText(openapiServerSelect, "OpenAPI 서버 URL을 선택/입력하세요.");
+    setErrorText(openapiServerSelect, "OpenAPI ?? URL? ??/?????.");
     ok = false;
   } else {
     setError(openapiServerSelect, false);
@@ -275,8 +276,10 @@ function validateInputs(payload, isExplore) {
 }
 
 let openapiActive = false;
+let openapiServers = [];
 const setOpenApiActive = (active) => {
   openapiActive = active;
+  if (!active) openapiServers = [];
   if (collectionInput) collectionInput.disabled = active;
   if (!active && openapiServerSelect) {
     openapiServerSelect.innerHTML = `<option value="">OpenAPI를 먼저 불러오세요</option>`;
@@ -336,11 +339,12 @@ if (loadOpenapiBtn) {
       renderCollectionTree();
       if (openapiServerSelect) {
         const servers = Array.isArray(res.servers) ? res.servers : [];
+        openapiServers = servers;
         const options = servers.length
           ? servers.map((url) => `<option value="${url}">${url}</option>`).join("")
-          : `<option value="">(서버 목록 없음)</option>`;
+          : `<option value="">(?? ?? ??)</option>`;
         openapiServerSelect.innerHTML = options;
-        openapiServerSelect.disabled = false;
+        openapiServerSelect.disabled = servers.length === 0;
         try {
           const saved = localStorage.getItem("openapi_server");
           if (saved && servers.includes(saved)) {
@@ -348,11 +352,18 @@ if (loadOpenapiBtn) {
           } else if (servers.length) {
             openapiServerSelect.value = servers[0];
             localStorage.setItem("openapi_server", servers[0]);
+          } else if (openapiUrl && openapiServerCustom) {
+            const origin = new URL(openapiUrl).origin;
+            openapiServerCustom.value = origin;
+            localStorage.setItem("openapi_server", origin);
           }
         } catch {
           // ignore
         }
       }
+      setError(openapiServerSelect, false);
+      setError(openapiServerCustom, false);
+      setErrorText(openapiServerSelect, "");
       statusLine.textContent = "OpenAPI 로드 완료";
     } else {
       statusLine.textContent = `OpenAPI 로드 실패: ${res?.error || "알 수 없음"}`;
