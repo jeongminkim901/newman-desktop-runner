@@ -174,15 +174,14 @@ function countRequests(collectionObj) {
   return walk(collectionObj?.item || []);
 }
 
-function fetchUrl(url, ignoreTls) {
+function fetchUrl(url, ignoreTls, timeoutMs = 15000) {
   return new Promise((resolve, reject) => {
     const isHttps = url.startsWith("https://");
     const client = isHttps ? https : http;
     const options = isHttps && ignoreTls ? { rejectUnauthorized: false } : undefined;
-    client
-      .get(url, options, (res) => {
+    const req = client.get(url, options, (res) => {
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          return fetchUrl(res.headers.location, ignoreTls).then(resolve).catch(reject);
+          return fetchUrl(res.headers.location, ignoreTls, timeoutMs).then(resolve).catch(reject);
         }
         if (res.statusCode >= 400) {
           return reject(new Error(`HTTP ${res.statusCode}`));
@@ -193,8 +192,11 @@ function fetchUrl(url, ignoreTls) {
           data += chunk;
         });
         res.on("end", () => resolve(data));
-      })
-      .on("error", reject);
+      });
+    req.setTimeout(timeoutMs, () => {
+      req.destroy(new Error("OpenAPI request timeout"));
+    });
+    req.on("error", reject);
   });
 }
 
@@ -421,6 +423,7 @@ ipcMain.handle("run-newman", async (_event, payload) => {
   if (!reporters || !reporters.length) {
     return { ok: false, error: "리포터를 최소 1개 선택하세요." };
   }
+  mainWindow?.webContents?.send("run-log", "[newman] loading collection...");
 
   const envVars = [];
   if (ip) envVars.push({ key: "ip", value: ip, enabled: true });
@@ -643,6 +646,7 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
 
   let collectionObj;
   try {
+    mainWindow?.webContents?.send("run-log", "[explore] loading collection...");
     collectionObj = await loadCollectionObject({
       collectionPath,
       openapiPath,
@@ -1008,6 +1012,7 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     summary
   };
 });
+
 
 
 
