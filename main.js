@@ -464,6 +464,9 @@ ipcMain.handle("run-newman", async (_event, payload) => {
       useSelectedRequests,
       selectedRequestNames
     });
+    if (openapiServerUrl) {
+      mainWindow?.webContents?.send("run-log", `[newman] baseUrl=${openapiServerUrl}`);
+    }
   } catch (e) {
     return { ok: false, error: e.message || String(e) };
   }
@@ -1012,6 +1015,7 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     summary
   };
 });
+
 
 
 

@@ -332,6 +332,9 @@ if (loadOpenapiBtn) {
           const saved = localStorage.getItem("openapi_server");
           if (saved && servers.includes(saved)) {
             openapiServerSelect.value = saved;
+          } else if (servers.length) {
+            openapiServerSelect.value = servers[0];
+            localStorage.setItem("openapi_server", servers[0]);
           }
         } catch {
           // ignore
@@ -970,6 +973,7 @@ filterFail.addEventListener("click", () => setFilter("fail"));
 filterExplore.addEventListener("click", () => setFilter("explore"));
 
 refreshHistory();
+
 
 
 
