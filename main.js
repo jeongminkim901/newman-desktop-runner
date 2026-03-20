@@ -714,7 +714,6 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     if (excludeFilters.length && matchAny(name, excludeFilters)) return false;
     return true;
   });
-  if (!filteredRequests.length) return { ok: false, error: "No requests match explore filters." };
   const runId = `run_${Date.now()}_explore`;
   const reportJson = path.join(outputDir, `${runId}.json`);
   const logPath = path.join(outputDir, `${runId}.log.txt`);
@@ -724,6 +723,11 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     logStream.write(line + "\n");
     mainWindow.webContents.send("run-log", line);
   };
+  if (!filteredRequests.length) {
+    emitLog("[explore] no requests matched filters");
+    return { ok: false, error: "No requests match explore filters." };
+  }
+  emitLog(`[explore] targets: ${filteredRequests.length}`);
 
   let progressTotal = 0;
   let progressCurrent = 0;

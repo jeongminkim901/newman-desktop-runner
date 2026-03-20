@@ -1,4 +1,4 @@
-﻿const el = (id) => document.getElementById(id);
+﻿﻿const el = (id) => document.getElementById(id);
 
 const collectionInput = el("collectionFile");
 const openapiFileInput = el("openapiFile");
@@ -232,7 +232,7 @@ function validateInputs(payload, isExplore) {
   if (requireServer && !serverValue) {
     setError(openapiServerSelect, true);
     setError(openapiServerCustom, true);
-    setErrorText(openapiServerSelect, "OpenAPI ?? URL? ??/?????.");
+    setErrorText(openapiServerSelect, "OpenAPI 서버 URL을 선택/입력하세요.");
     ok = false;
   } else {
     setError(openapiServerSelect, false);
@@ -342,7 +342,7 @@ if (loadOpenapiBtn) {
         openapiServers = servers;
         const options = servers.length
           ? servers.map((url) => `<option value="${url}">${url}</option>`).join("")
-          : `<option value="">(?? ?? ??)</option>`;
+          : `<option value="">(서버 목록 없음)</option>`;
         openapiServerSelect.innerHTML = options;
         openapiServerSelect.disabled = servers.length === 0;
         try {
@@ -887,9 +887,14 @@ window.addEventListener("mousemove", (e) => {
 runBtn.addEventListener("click", async () => {
   logBox.innerHTML = "";
   statusLine.textContent = "실행 중...";
-  appendLog("[ui] 실행 시작");
+  const fail = (msg) => {
+    statusLine.textContent = msg;
+    appendLog(`[ui] 실행 중단: ${msg}`);
+    setRunning(false);
+  };
 
   const reporters = [];
+
   if (repCli.checked) reporters.push("cli");
   if (repHtml.checked) reporters.push("html");
   if (repJson.checked) reporters.push("json");
@@ -897,20 +902,17 @@ runBtn.addEventListener("click", async () => {
   let failedRequestNames = [];
   if (exploreEnabled?.checked && exploreFailedOnly?.checked) {
     if (!lastPreviewJsonPath) {
-      statusLine.textContent = "실패만 재탐색하려면 먼저 JSON 미리보기를 열어주세요.";
-      return;
+      return fail("??? ?????? ?? JSON ????? ?????.");
     }
     try {
-      const res = await fetch(`file:///${lastPreviewJsonPath.replace(/\\/g, "/")}`);
+      const res = await fetch(`file:///${lastPreviewJsonPath.replace(/\\\\/g, "/")}`);
       const text = await res.text();
       failedRequestNames = extractFailedNamesFromJson(text);
       if (!failedRequestNames.length) {
-        statusLine.textContent = "마지막 JSON 미리보기에 실패 요청이 없습니다.";
-        return;
+        return fail("??? JSON ????? ?? ??? ????.");
       }
     } catch (e) {
-    statusLine.textContent = `JSON 미리보기 읽기 실패: ${e.message}`;
-      return;
+      return fail(`JSON ???? ?? ??: ${e.message}`);
     }
   }
 
@@ -951,24 +953,23 @@ runBtn.addEventListener("click", async () => {
 
   const isExplore = !!exploreEnabled?.checked;
   if (!validateInputs(payload, isExplore)) {
-    statusLine.textContent = "입력값을 확인하세요. 빨간 테두리 항목이 필요합니다.";
-    return;
+    return fail("???? ?????. ?? ??? ??? ?????.");
   }
 
   if (!payload.collectionPath && !payload.openapiPath && !payload.openapiUrl) {
-    statusLine.textContent = "컬렉션 또는 OpenAPI가 필요합니다.";
-    return;
+    return fail("??? ?? OpenAPI? ?????.");
   }
   if (!payload.outputDir) {
-    statusLine.textContent = "출력 폴더가 필요합니다.";
-    return;
+    return fail("?? ??? ?????.");
   }
   if (!payload.reporters.length && !exploreEnabled?.checked) {
-    statusLine.textContent = "리포터를 최소 1개 선택하세요.";
-    return;
+    return fail("???? ?? 1? ?????.");
   }
 
+  appendLog("[ui] ?? ??");
+
   setRunning(true);
+
   const res = exploreEnabled?.checked
     ? await window.api.runExploratory(payload)
     : await window.api.runNewman(payload);
@@ -982,7 +983,7 @@ runBtn.addEventListener("click", async () => {
       showJsonPreview(res.reportJson, res.reportHtml);
     }
   } else {
-    statusLine.textContent = res.error === "cancelled" ? "중지됨" : `실패: ${res.error}`;
+    statusLine.textContent = res.error === "cancelled" ? "중지됨" : `실패: ${res.error}`;\n    appendLog(res.error === "cancelled" ? "[ui] 중지됨" : `[ui] 실패: ${res.error}`);\n    appendLog(res.error === "cancelled" ? "[ui] 중지됨" : `[ui] 실패: ${res.error}`);
   }
 
   appendLog(res.error === "cancelled" ? "[ui] 중지됨" : "[ui] 실행 종료");
