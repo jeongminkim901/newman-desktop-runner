@@ -1,4 +1,4 @@
-﻿﻿const el = (id) => document.getElementById(id);
+﻿﻿﻿const el = (id) => document.getElementById(id);
 
 const collectionInput = el("collectionFile");
 const openapiFileInput = el("openapiFile");
@@ -581,8 +581,24 @@ if (stopBtn) {
 }
 
 pickDirBtn.addEventListener("click", async () => {
-  const dir = await window.api.pickOutputDir();
-  if (dir) outputDirInput.value = dir;
+  appendLog("[ui] ?? ?? ?? ??");
+  if (!window.api || !window.api.pickOutputDir) {
+    statusLine.textContent = "?? ?? ??? ? ? ????.";
+    appendLog("[ui] ?? ?? ?? ??: api ??");
+    return;
+  }
+  try {
+    const dir = await window.api.pickOutputDir();
+    if (dir) {
+      outputDirInput.value = dir;
+      appendLog(`[ui] ?? ?? ??: ${dir}`);
+    } else {
+      appendLog("[ui] ?? ?? ?? ??");
+    }
+  } catch (e) {
+    statusLine.textContent = `?? ?? ?? ??: ${e.message || e}`;
+    appendLog(`[ui] ?? ?? ?? ??: ${e.message || e}`);
+  }
 });
 
 function openHelpModal() {
