@@ -27,6 +27,7 @@ const {
   buildVariants,
   buildSchemaVariants,
   buildSecurityVariants,
+  buildAuthVariants,
   validateSchema,
   buildUrlWithQuery
 } = require("./lib/exploreHelpers");
@@ -354,7 +355,7 @@ function buildSchemaIndex(openapiObj) {
           responseSchemas[code] = info.schema;
         }
       });
-      const staticScore = (mergedPath.match(/\\{[^/]+\\}/g) || []).length * -1 + mergedPath.length;
+      const staticScore = (mergedPath.match(/\{[^/]+\}/g) || []).length * -1 + mergedPath.length;
       entries.push({
         method: m,
         pathTemplate: mergedPath,
@@ -379,8 +380,8 @@ function resolveResponseSchema(entry, status) {
   if (!entry || !entry.responseSchemas) return null;
   const code = String(status || "");
   if (entry.responseSchemas[code]) return entry.responseSchemas[code];
-  if (/^2\\d\\d$/.test(code)) {
-    const any2xx = Object.keys(entry.responseSchemas).find((k) => /^2\\d\\d$/.test(k));
+  if (/^2\d\d$/.test(code)) {
+    const any2xx = Object.keys(entry.responseSchemas).find((k) => /^2\d\d$/.test(k));
     if (any2xx) return entry.responseSchemas[any2xx];
   }
   if (entry.responseSchemas.default) return entry.responseSchemas.default;
@@ -404,8 +405,6 @@ ipcMain.handle("run-newman", async (_event, payload) => {
     ip,
     token,
     extraVarsJson,
-    invalidVarsJson,
-    runInvalidAlso,
     selectedRequestNames,
     useSelectedRequests,
     outputDir,
@@ -449,8 +448,6 @@ ipcMain.handle("run-newman", async (_event, payload) => {
       return { ok: false, error: `extra vars JSON parse error: ${e.message}` };
     }
   }
-
-  const invalidOverrides = invalidVarsJson ? parseVarsJson(invalidVarsJson) : [];
 
   const effectiveOpenapiIgnoreTls = !!openapiIgnoreTls || !!newmanIgnoreTls;
 
@@ -505,7 +502,7 @@ ipcMain.handle("run-newman", async (_event, payload) => {
       process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
     }
     return new Promise((resolve) => {
-      newman.run(
+      const runner = newman.run(
         {
           collection: baseCollection,
           environment: environmentPath || undefined,
@@ -600,16 +597,22 @@ ipcMain.handle("run-newman", async (_event, payload) => {
     });
   };
 
-  return new Promise(async (resolve) => {
-    const primary = await runOnce("valid", []);
-    if (!primary.ok || !runInvalidAlso) return resolve(primary);
-    if (invalidOverrides.length === 0) {
-      return resolve(primary);
-    }
-    const secondary = await runOnce("invalid", invalidOverrides);
-    return resolve(secondary);
-  });
+  return runOnce("valid", []);
 });
+
+function readEnvVars(environmentPath) {
+  if (!environmentPath) return [];
+  try {
+    const raw = fs.readFileSync(environmentPath, "utf-8");
+    const env = JSON.parse(raw);
+    const values = Array.isArray(env.values) ? env.values : (Array.isArray(env.variable) ? env.variable : []);
+    return values
+      .filter((v) => v && v.enabled !== false)
+      .map((v) => ({ key: String(v.key || ""), value: String(v.value || ""), enabled: true }));
+  } catch {
+    return [];
+  }
+}
 
 ipcMain.handle("run-exploratory", async (_event, payload) => {
   const {
@@ -755,7 +758,8 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
   let schemaFailCount = 0;
   let semanticFailCount = 0;
   let securityWarnCount = 0;
-  const variantCountByType = { body: 0, query: 0, method: 0, schema: 0, custom: 0, security: 0 };
+  let authWarnCount = 0;
+  const variantCountByType = { body: 0, query: 0, method: 0, schema: 0, custom: 0, security: 0, auth: 0 };
 
   const ctx = await pwRequest.newContext({ ignoreHTTPSErrors: !!ignoreTls });
   activeRun = { type: "explore", cancelled: false, ctx };
@@ -801,7 +805,8 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     const variants = [ ...baseVariants, ...schemaVariants, ...securityVariants ].slice(0, variantCap);
 
     const methodVariants = allowMethodVariants ? buildMethodVariants(method) : [];
-    progressTotal += 1 + variants.length + methodVariants.length;
+    const authVariantList = buildAuthVariants(token, 2);
+    progressTotal += 1 + variants.length + methodVariants.length + authVariantList.length;
     emitProgress();
 
     const runOnce = async (
@@ -811,7 +816,8 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
       methodOverride,
       dropBody = false,
       variantType = "base",
-      schemaContext = schemaEntry
+      schemaContext = schemaEntry,
+      headersOverride = null
     ) => {
       if (activeRun?.cancelled) return;
       const methodToUse = methodOverride || method;
@@ -822,9 +828,10 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
           : bodyInfo?.json
             ? JSON.stringify(bodyInfo.json)
             : baseBody;
+      const effectiveHeaders = headersOverride !== null ? headersOverride : headersWithAuth;
       const headersFinal = requestBody
-        ? { "Content-Type": "application/json", ...headersWithAuth }
-        : headersWithAuth;
+        ? { "Content-Type": "application/json", ...effectiveHeaders }
+        : effectiveHeaders;
       const started = Date.now();
       let status = 0;
       let responseText = "";
@@ -832,6 +839,7 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
       let schemaErrors = [];
       let semanticErrors = [];
       let securityWarnings = [];
+      let authWarnings = [];
       let attempt = 0;
       while (attempt < 2) {
         try {
@@ -874,7 +882,7 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
             const allowed = Object.keys(schemaContext.responseSchemas || {});
             const isAllowed =
               allowed.includes(String(status)) ||
-              (allowed.some((k) => /^2\\d\\d$/.test(k)) && status >= 200 && status < 300) ||
+              (allowed.some((k) => /^2\d\d$/.test(k)) && status >= 200 && status < 300) ||
               allowed.includes("default");
             if (!isAllowed && !(semanticMode === "allow_5xx" && status >= 500)) {
               semanticFailCount += 1;
@@ -884,6 +892,10 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
           if (variantType === "security" && status >= 200 && status < 300) {
             securityWarnCount += 1;
             securityWarnings = [ "security:2xx" ];
+          }
+          if (variantType === "auth" && status >= 200 && status < 300) {
+            authWarnCount += 1;
+            authWarnings = [ "auth:2xx" ];
           }
           if (status >= 500 && attempt === 0) {
             attempt += 1;
@@ -902,7 +914,11 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
         }
       }
       const durationMs = Date.now() - started;
-      if (error || status >= 400) failed += 1;
+      if (variantType === "auth") {
+        if (error || status >= 500) failed += 1;
+      } else {
+        if (error || status >= 400) failed += 1;
+      }
       const isMethodVariant = String(variantLabel || "").startsWith("method:");
       if (variantCountByType[variantType] !== undefined) {
         variantCountByType[variantType] += 1;
@@ -920,8 +936,9 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
         schemaErrors,
         semanticErrors,
         securityWarnings,
+        authWarnings,
         request: {
-          headers: headersWithAuth,
+          headers: effectiveHeaders,
           body: truncateBody(requestBody)
         },
         response: {
@@ -954,6 +971,22 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
         if (delayMs > 0) await sleep(delayMs);
       }
     }
+
+    if (authVariantList.length) {
+      if (activeRun?.cancelled) break;
+      for (const av of authVariantList) {
+        if (activeRun?.cancelled) break;
+        const authHeaders = { ...headersWithAuth };
+        if (av.authOverride === "none") {
+          delete authHeaders.Authorization;
+          delete authHeaders.authorization;
+        } else {
+          authHeaders.Authorization = av.authOverride;
+        }
+        await runOnce(av.label, baseUrl, null, null, false, "auth", schemaEntry, authHeaders);
+        if (delayMs > 0) await sleep(delayMs);
+      }
+    }
   }
 
   await ctx.dispose();
@@ -975,6 +1008,7 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     schemaFailCount,
     semanticFailCount,
     securityWarnCount,
+    authWarnCount,
     variantCountByType
   };
 
@@ -995,7 +1029,7 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     })
     .join("");
   const variantLine = `body=${variantCountByType.body} query=${variantCountByType.query} method=${variantCountByType.method} schema=${variantCountByType.schema} custom=${variantCountByType.custom} security=${variantCountByType.security}`;
-  const html = `<!doctype html><html><head><meta charset=\"utf-8\"><title>Exploratory Report</title><style>body{font-family:Segoe UI,Arial,sans-serif;padding:16px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:6px;font-size:12px}th{background:#f3f4f6;text-align:left}.tag{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:999px;background:#e0f2fe;color:#075985;font-size:10px;font-weight:600}</style></head><body><h2>Exploratory Report</h2><p>Total: ${summary.total} ? Failed: ${summary.failed} ? Schema fail: ${summary.schemaFailCount} ? Semantic fail: ${summary.semanticFailCount} ? Security warn: ${summary.securityWarnCount}</p><p>Variants: ${variantLine}</p><table><thead><tr><th>Name</th><th>Variant</th><th>Method</th><th>Status</th><th>Ms</th><th>Error</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
+  const html = `<!doctype html><html><head><meta charset=\"utf-8\"><title>Exploratory Report</title><style>body{font-family:Segoe UI,Arial,sans-serif;padding:16px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:6px;font-size:12px}th{background:#f3f4f6;text-align:left}.tag{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:999px;background:#e0f2fe;color:#075985;font-size:10px;font-weight:600}</style></head><body><h2>Exploratory Report</h2><p>Total: ${summary.total} · Failed: ${summary.failed} · Schema fail: ${summary.schemaFailCount} · Semantic fail: ${summary.semanticFailCount} · Security warn: ${summary.securityWarnCount} · Auth warn: ${summary.authWarnCount}</p><p>Variants: ${variantLine}</p><table><thead><tr><th>Name</th><th>Variant</th><th>Method</th><th>Status</th><th>Ms</th><th>Error</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
   fs.writeFileSync(reportHtml, html, "utf-8");
 
   const history = readHistory();

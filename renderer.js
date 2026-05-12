@@ -1,4 +1,4 @@
-﻿﻿﻿const el = (id) => document.getElementById(id);
+﻿﻿const el = (id) => document.getElementById(id);
 
 const collectionInput = el("collectionFile");
 const openapiFileInput = el("openapiFile");
@@ -12,7 +12,6 @@ const ipInput = el("ip");
 const tokenInput = el("token");
 const clearSavedBtn = el("clearSavedBtn");
 const extraVarsInput = el("extraVars");
-const invalidVarsInput = el("invalidVars");
 const collectionSearch = el("collectionSearch");
 const collectionTree = el("collectionTree");
 const selectAllBtn = el("selectAllBtn");
@@ -20,22 +19,13 @@ const selectNoneBtn = el("selectNoneBtn");
 const useSelectedRequests = el("useSelectedRequests");
 const showReqRes = el("showReqRes");
 const outputDirInput = el("outputDir");
-const runInvalidAlso = el("runInvalidAlso");
-const iterationInput = el("iterationCount");
-const timeoutInput = el("timeoutRequest");
-const delayInput = el("delayRequest");
-const bailInput = el("bail");
-const newmanIgnoreTls = el("newmanIgnoreTls");
 const exploreEnabled = el("exploreEnabled");
 const variantsPerRequest = el("variantsPerRequest");
 const exploreDelayMs = el("exploreDelayMs");
 const exploreRuleMode = el("exploreRuleMode");
 const exploreCustomJson = el("exploreCustomJson");
 const exploreFailedOnly = el("exploreFailedOnly");
-const exploreTemplate = el("exploreTemplate");
 const exploreMethodVariants = el("exploreMethodVariants");
-const exploreHardMode = el("exploreHardMode");
-const semanticMode = el("semanticMode");
 const exploreIgnoreTls = el("exploreIgnoreTls");
 const exploreInclude = el("exploreInclude");
 const exploreExclude = el("exploreExclude");
@@ -426,34 +416,6 @@ if (openapiServerCustom) {
 let historyCache = [];
 let historyFilter = "all";
 let lastPreviewJsonPath = "";
-const templateMap = {
-  auth_missing: [
-    { label: "auth:missing", body: { token: "" } }
-  ],
-  boundary_values: [
-    { label: "boundary:zero", body: { value: 0 } },
-    { label: "boundary:negative", body: { value: -1 } },
-    { label: "boundary:large", body: { value: 999999999 } }
-  ],
-  sql_injection: [
-    { label: "sql:basic", body: { query: "' OR 1=1 --" } },
-    { label: "sql:union", body: { query: "' UNION SELECT 1,2 --" } }
-  ],
-  xss_payloads: [
-    { label: "xss:script", body: { input: "<script>alert(1)</script>" } },
-    { label: "xss:img", body: { input: "<img src=x onerror=alert(1)>" } }
-  ]
-};
-
-if (exploreTemplate) {
-  exploreTemplate.addEventListener("change", () => {
-    const key = exploreTemplate.value;
-    if (!key) return;
-    exploreRuleMode.value = "custom";
-    exploreCustomJson.value = JSON.stringify(templateMap[key] || [], null, 2);
-  });
-}
-
 function appendLog(line) {
   const div = document.createElement("div");
   div.textContent = line;
@@ -581,24 +543,8 @@ if (stopBtn) {
 }
 
 pickDirBtn.addEventListener("click", async () => {
-  appendLog("[ui] ?? ?? ?? ??");
-  if (!window.api || !window.api.pickOutputDir) {
-    statusLine.textContent = "?? ?? ??? ? ? ????.";
-    appendLog("[ui] ?? ?? ?? ??: api ??");
-    return;
-  }
-  try {
-    const dir = await window.api.pickOutputDir();
-    if (dir) {
-      outputDirInput.value = dir;
-      appendLog(`[ui] ?? ?? ??: ${dir}`);
-    } else {
-      appendLog("[ui] ?? ?? ?? ??");
-    }
-  } catch (e) {
-    statusLine.textContent = `?? ?? ?? ??: ${e.message || e}`;
-    appendLog(`[ui] ?? ?? ?? ??: ${e.message || e}`);
-  }
+  const dir = await window.api.pickOutputDir();
+  if (dir) outputDirInput.value = dir;
 });
 
 function openHelpModal() {
@@ -715,12 +661,13 @@ async function loadJsonSummary(jsonPath, cachedText) {
       const schemaFailCount = data.summary?.schemaFailCount ?? 0;
       const semanticFailCount = data.summary?.semanticFailCount ?? 0;
       const securityWarnCount = data.summary?.securityWarnCount ?? 0;
+      const authWarnCount = data.summary?.authWarnCount ?? 0;
       const variantCountByType = data.summary?.variantCountByType || {};
       const variantLine = Object.keys(variantCountByType).length
         ? ` · 변형(${Object.entries(variantCountByType).map(([k, v]) => `${k}:${v}`).join(", ")})`
         : "";
 
-      previewSummary.textContent = `탐색 실행: ${results.length} · 실패: ${failed.length} · 스키마 실패: ${schemaFailCount} · 시맨틱 실패: ${semanticFailCount} · 보안 경고: ${securityWarnCount}${variantLine}`;
+      previewSummary.textContent = `탐색 실행: ${results.length} · 실패: ${failed.length} · 스키마 실패: ${schemaFailCount} · 시맨틱 실패: ${semanticFailCount} · 보안 경고: ${securityWarnCount} · 인증 경고: ${authWarnCount}${variantLine}`;
       summaryTotal.textContent = String(results.length);
       summaryFailed.textContent = String(failed.length);
       summaryAvg.textContent = String(avg);
@@ -833,6 +780,7 @@ function renderExploreFailureList(failed, showDetails) {
       if (item.schemaErrors && item.schemaErrors.length) tags.push("Schema");
       if (item.semanticErrors && item.semanticErrors.length) tags.push("Semantic");
       if (item.securityWarnings && item.securityWarnings.length) tags.push("Security");
+      if (item.authWarnings && item.authWarnings.length) tags.push("Auth");
       const tagHtml = tags.length ? ` ${tags.map((t) => `<span class=\"tag\">${t}</span>`).join(" ")}` : "";
       li.innerHTML = `
         <div class="row">
@@ -918,17 +866,17 @@ runBtn.addEventListener("click", async () => {
   let failedRequestNames = [];
   if (exploreEnabled?.checked && exploreFailedOnly?.checked) {
     if (!lastPreviewJsonPath) {
-      return fail("??? ?????? ?? JSON ????? ?????.");
+      return fail("이전 결과 JSON 경로가 없습니다.");
     }
     try {
       const res = await fetch(`file:///${lastPreviewJsonPath.replace(/\\\\/g, "/")}`);
       const text = await res.text();
       failedRequestNames = extractFailedNamesFromJson(text);
       if (!failedRequestNames.length) {
-        return fail("??? JSON ????? ?? ??? ????.");
+        return fail("JSON에서 실패한 요청이 없습니다.");
       }
     } catch (e) {
-      return fail(`JSON ???? ?? ??: ${e.message}`);
+      return fail(`JSON 읽기 실패: ${e.message}`);
     }
   }
 
@@ -936,16 +884,14 @@ runBtn.addEventListener("click", async () => {
     collectionPath: collectionInput.files[0]?.path,
     openapiPath: openapiFileInput?.files?.[0]?.path,
     openapiUrl: openapiUrlInput?.value?.trim(),
-    openapiIgnoreTls: !!openapiIgnoreTls?.checked || !!newmanIgnoreTls?.checked || !!exploreIgnoreTls?.checked,
+    openapiIgnoreTls: !!openapiIgnoreTls?.checked || !!exploreIgnoreTls?.checked,
     openapiServerUrl: openapiServerCustom?.value?.trim() || openapiServerSelect?.value?.trim(),
     environmentPath: environmentInput.files[0]?.path,
     ip: ipInput.value.trim(),
     token: tokenInput.value.trim(),
     extraVarsJson: extraVarsInput.value.trim(),
     selectedRequestNames: selectedRequestNames(),
-    runInvalidAlso: runInvalidAlso.checked,
     useSelectedRequests: useSelectedRequests.checked,
-    invalidVarsJson: invalidVarsInput.value.trim(),
     outputDir: outputDirInput.value.trim(),
     variantsPerRequest: Number(variantsPerRequest?.value || 3),
     exploreDelayMs: Number(exploreDelayMs?.value || 300),
@@ -954,35 +900,35 @@ runBtn.addEventListener("click", async () => {
     ignoreTls: !!exploreIgnoreTls?.checked,
     failedOnly: !!exploreFailedOnly?.checked,
     methodVariants: !!exploreMethodVariants?.checked,
-    hardMode: !!exploreHardMode?.checked,
-    semanticMode: semanticMode?.value || "openapi",
+    hardMode: false,
+    semanticMode: "openapi",
     failedRequestNames,
     exploreInclude: exploreInclude?.value?.trim(),
     exploreExclude: exploreExclude?.value?.trim(),
     reporters,
-    iterationCount: Number(iterationInput.value || 1),
-    timeoutRequest: Number(timeoutInput.value || 300000),
-    delayRequest: Number(delayInput.value || 0),
-    bail: bailInput.checked,
-    newmanIgnoreTls: !!newmanIgnoreTls?.checked
+    iterationCount: 1,
+    timeoutRequest: 300000,
+    delayRequest: 0,
+    bail: false,
+    newmanIgnoreTls: !!exploreIgnoreTls?.checked
   };
 
   const isExplore = !!exploreEnabled?.checked;
   if (!validateInputs(payload, isExplore)) {
-    return fail("???? ?????. ?? ??? ??? ?????.");
+    return fail("입력값을 확인하세요. 필수 항목을 채워주세요.");
   }
 
   if (!payload.collectionPath && !payload.openapiPath && !payload.openapiUrl) {
-    return fail("??? ?? OpenAPI? ?????.");
+    return fail("컬렉션 또는 OpenAPI가 필요합니다.");
   }
   if (!payload.outputDir) {
-    return fail("?? ??? ?????.");
+    return fail("출력 폴더가 필요합니다.");
   }
   if (!payload.reporters.length && !exploreEnabled?.checked) {
-    return fail("???? ?? 1? ?????.");
+    return fail("리포터를 최소 1개 선택하세요.");
   }
 
-  appendLog("[ui] ?? ??");
+  appendLog("[ui] 실행 시작");
 
   setRunning(true);
 
@@ -999,7 +945,8 @@ runBtn.addEventListener("click", async () => {
       showJsonPreview(res.reportJson, res.reportHtml);
     }
   } else {
-    statusLine.textContent = res.error === "cancelled" ? "중지됨" : `실패: ${res.error}`;\n    appendLog(res.error === "cancelled" ? "[ui] 중지됨" : `[ui] 실패: ${res.error}`);\n    appendLog(res.error === "cancelled" ? "[ui] 중지됨" : `[ui] 실패: ${res.error}`);
+    statusLine.textContent = res.error === "cancelled" ? "중지됨" : `실패: ${res.error}`;
+    appendLog(res.error === "cancelled" ? "[ui] 중지됨" : `[ui] 실패: ${res.error}`);
   }
 
   appendLog(res.error === "cancelled" ? "[ui] 중지됨" : "[ui] 실행 종료");

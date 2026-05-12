@@ -5,6 +5,7 @@ const {
   buildVariants,
   buildSchemaVariants,
   buildSecurityVariants,
+  buildAuthVariants,
   validateSchema,
   buildUrlWithQuery
 } = require("../../lib/exploreHelpers");
@@ -99,5 +100,59 @@ describe("exploreHelpers", () => {
     const url = buildUrlWithQuery("http://example.com/a?x=1", [ { key: "y", value: "2" } ]);
     expect(url).toContain("y=2");
     expect(url).not.toContain("x=1");
+  });
+
+  test("buildVariants covers all query params", () => {
+    const variants = buildVariants(
+      { queryParams: [ { key: "a", value: "1" }, { key: "b", value: "2" } ], mode: "basic" },
+      10
+    );
+    expect(variants.some((v) => v.label === "query:remove:a")).toBe(true);
+    expect(variants.some((v) => v.label === "query:remove:b")).toBe(true);
+    expect(variants.some((v) => v.label === "query:empty:a")).toBe(true);
+    expect(variants.some((v) => v.label === "query:empty:b")).toBe(true);
+  });
+
+  test("buildVariants covers all body fields", () => {
+    const variants = buildVariants(
+      { bodyJson: { json: { name: "x", age: 1 } }, mode: "basic" },
+      10
+    );
+    expect(variants.some((v) => v.label === "body:remove:name")).toBe(true);
+    expect(variants.some((v) => v.label === "body:remove:age")).toBe(true);
+    expect(variants.some((v) => v.label === "body:null:name")).toBe(true);
+    expect(variants.some((v) => v.label === "body:null:age")).toBe(true);
+  });
+
+  test("buildSchemaVariants covers all constrained fields", () => {
+    const schema = {
+      type: "object",
+      required: [ "a", "b" ],
+      properties: {
+        a: { type: "string", minLength: 1 },
+        b: { type: "string", minLength: 2 }
+      }
+    };
+    const variants = buildSchemaVariants(schema, { a: "x", b: "yy" }, 10);
+    expect(variants.some((v) => v.label === "schema:missing:a")).toBe(true);
+    expect(variants.some((v) => v.label === "schema:missing:b")).toBe(true);
+    expect(variants.some((v) => v.label === "schema:minLength:a")).toBe(true);
+    expect(variants.some((v) => v.label === "schema:minLength:b")).toBe(true);
+  });
+
+  test("buildAuthVariants without token returns no_token only", () => {
+    const variants = buildAuthVariants(null, 2);
+    expect(variants).toHaveLength(1);
+    expect(variants[0].label).toBe("auth:no_token");
+    expect(variants[0].authOverride).toBe("none");
+    expect(variants[0].type).toBe("auth");
+  });
+
+  test("buildAuthVariants with token returns no_token and wrong_token", () => {
+    const variants = buildAuthVariants("my-secret", 2);
+    expect(variants).toHaveLength(2);
+    expect(variants[0].label).toBe("auth:no_token");
+    expect(variants[1].label).toBe("auth:wrong_token");
+    expect(variants[1].authOverride).toMatch("Bearer");
   });
 });

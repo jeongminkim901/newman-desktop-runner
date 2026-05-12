@@ -64,31 +64,6 @@
             <div class="hint">OpenAPI를 불러오면 컬렉션 파일은 비활성화됩니다.</div>
           </label>
           <label>
-            반복 횟수
-            <span class="help-tip" data-tip="컬렉션을 반복 실행할 횟수입니다.">?</span>
-            <input id="iterationCount" type="number" min="1" value="1" />
-          </label>
-          <label>
-            타임아웃 (ms)
-            <span class="help-tip" data-tip="요청 1건당 최대 대기 시간(ms)입니다.">?</span>
-            <input id="timeoutRequest" type="number" min="1000" value="300000" />
-          </label>
-          <label>
-            지연 (ms)
-            <span class="help-tip" data-tip="변형 요청 간 지연(ms)입니다. 서버 부하 완화용입니다.">?</span>
-            <input id="delayRequest" type="number" min="0" value="0" />
-          </label>
-          <label class="toggle">
-            <input id="newmanIgnoreTls" type="checkbox" checked />
-            SSL 검증 무시 (Newman)
-            <span class="help-tip" data-tip="Newman 실행 시 HTTPS 인증서 검증을 건너뜁니다. 사설 인증서/내부망에서만 사용하세요.">?</span>
-          </label>
-          <label class="toggle">
-            <input id="bail" type="checkbox" />
-            첫 실패 시 중단
-            <span class="help-tip" data-tip="실패 발생 시 즉시 중단합니다.">?</span>
-          </label>
-          <label>
             IP
             <span class="help-tip" data-tip="컬렉션 변수 {{ip}}에 치환됩니다.">?</span>
             <input id="ip" type="text" placeholder="192.168.0.1" />
@@ -123,19 +98,9 @@
             <span class="help-tip" data-tip="추가 변수 JSON을 입력합니다. 예: {\"key\":\"value\"}">?</span>
             <textarea id="extraVars" placeholder='{"key":"value"}&#10;또는&#10;[{"key":"k","value":"v"}]'></textarea>
           </label>
-          <label class="wide">
-            비정상 변수 (JSON)
-            <span class="help-tip" data-tip="실패 유도용 변수 오버라이드 JSON입니다.">?</span>
-            <textarea id="invalidVars" placeholder='비정상 실행용 변수 오버라이드&#10;(선택)'></textarea>
-          </label>
-          <label class="toggle wide">
-            <input id="runInvalidAlso" type="checkbox" />
-            비정상 변수로 2차 실행
-            <span class="help-tip" data-tip="정상 실행 후 비정상 변수로 1회 더 실행합니다. 실패 유도용이며 운영환경은 비권장입니다.">?</span>
-          </label>
           <div class="wide explore-box">
           <label class="toggle">
-            <input id="exploreEnabled" type="checkbox" />
+            <input id="exploreEnabled" type="checkbox" checked />
             탐색적 API 테스트 (Playwright)
             <span class="help-tip" data-tip="선택된 API에 변형 요청을 추가 전송합니다. 변형 방식: 필드 삭제/빈값/타입 변경(쿼리 우선). 리스크: 비정상 트래픽 발생 가능. 권장: 개발/스테이징에서 낮은 변형 수.">?</span>
           </label>
@@ -161,17 +126,6 @@
                 <option value="custom">사용자</option>
               </select>
             </label>
-            <label>
-              변형 템플릿
-              <span class="help-tip" data-tip="Auth/Boundary/SQL/XSS 템플릿을 자동 적용합니다. 운영환경 비권장.">?</span>
-              <select id="exploreTemplate">
-                <option value="">템플릿 선택</option>
-                <option value="auth_missing">인증 누락</option>
-                <option value="boundary_values">경계값</option>
-                  <option value="sql_injection">SQL 인젝션</option>
-                  <option value="xss_payloads">XSS 페이로드</option>
-                </select>
-              </label>
             <label class="toggle">
               <input id="exploreFailedOnly" type="checkbox" />
               실패만 재탐색 (마지막 JSON 기준)
@@ -181,21 +135,6 @@
               <input id="exploreMethodVariants" type="checkbox" checked />
               메서드 변형 포함
               <span class="help-tip" data-tip="HTTP 메서드 변형(GET↔POST/DELETE 등)을 추가로 수행합니다. 꺼두면 원래 메서드만 사용합니다.">?</span>
-            </label>
-            <label class="toggle">
-              <input id="exploreHardMode" type="checkbox" />
-              강화 모드 (보안/시맨틱)
-              <span class="help-tip" data-tip="강화 모드는 보안 페이로드/검증을 확장합니다. 운영환경은 비권장, 개발/스테이징에서만 사용하세요.">?</span>
-            </label>
-            <label>
-              시맨틱 프리셋
-              <span class="help-tip" data-tip="응답 기대값을 강제합니다. 기본은 OpenAPI 기준(없으면 완화).">?</span>
-              <select id="semanticMode">
-                <option value="openapi" selected>OpenAPI 기준</option>
-                <option value="expect_401">401 기대</option>
-                <option value="expect_404">404 기대</option>
-                <option value="allow_5xx">5xx 허용</option>
-              </select>
             </label>
             <label class="toggle">
               <input id="exploreIgnoreTls" type="checkbox" checked />
@@ -363,8 +302,7 @@
                 <li><strong>규칙 모드</strong>:
                   기본(필드삭제/빈값/타입깨기), 확장(경계/특수문자 포함), 사용자(직접 JSON)
                 </li>
-                <li><strong>변형 템플릿</strong> 선택 시 사용자 JSON이 자동 채워집니다.</li>
-                <li><strong>실패만 재탐색</strong>: 마지막 JSON 미리보기의 실패 요청만 재탐색</li>
+<li><strong>실패만 재탐색</strong>: 마지막 JSON 미리보기의 실패 요청만 재탐색</li>
                 <li><strong>메서드 변형 포함</strong>: HTTP 메서드 변형 실행 여부</li>
                 <li><strong>SSL 검증 무시</strong>: 사설 인증서/내부망 HTTPS 오류가 날 때 사용(보안상 운영환경 비추천)</li>
               </ol>
@@ -410,9 +348,5 @@
     <script src="renderer.js"></script>
   </body>
 </html>
-
-
-
-
 
 
