@@ -31,10 +31,29 @@ describe("exploreHelpers", () => {
     expect(headers.Authorization).toBe("Bearer abc");
   });
 
-  test("buildVariants uses query params first", () => {
+  test("buildVariants generates query variants when only query params exist", () => {
     const variants = buildVariants({ queryParams: [ { key: "a", value: "1" } ], mode: "basic" }, 3);
     expect(variants[0].label).toMatch("query:remove");
     expect(variants[0].type).toBe("query");
+  });
+
+  test("buildVariants generates both query and body variants when both are present", () => {
+    const variants = buildVariants(
+      { queryParams: [ { key: "q", value: "1" } ], bodyJson: { json: { name: "x" } }, mode: "basic" },
+      10
+    );
+    expect(variants.some((v) => v.type === "query")).toBe(true);
+    expect(variants.some((v) => v.type === "body")).toBe(true);
+  });
+
+  test("buildVariants interleaves query and body so both appear within a small cap", () => {
+    const variants = buildVariants(
+      { queryParams: [ { key: "q", value: "1" } ], bodyJson: { json: { name: "x" } }, mode: "basic" },
+      2
+    );
+    expect(variants.length).toBe(2);
+    expect(variants.some((v) => v.type === "query")).toBe(true);
+    expect(variants.some((v) => v.type === "body")).toBe(true);
   });
 
   test("buildVariants supports extended mode", () => {
@@ -73,13 +92,32 @@ describe("exploreHelpers", () => {
     expect(variants.some((v) => v.label.startsWith("schema:maximum"))).toBe(true);
   });
 
-  test("buildSecurityVariants generates basic security cases", () => {
+  test("buildSecurityVariants generates query security cases when only query params exist", () => {
     const variants = buildSecurityVariants(
       { queryParams: [ { key: "q", value: "ok" } ] },
       2
     );
     expect(variants.length).toBe(2);
-    expect(variants[0].label.startsWith("sec:query")).toBe(true);
+    expect(variants.every((v) => v.label.startsWith("sec:query"))).toBe(true);
+  });
+
+  test("buildSecurityVariants generates both query and body security cases when both are present", () => {
+    const variants = buildSecurityVariants(
+      { queryParams: [ { key: "q", value: "ok" } ], bodyJson: { json: { name: "x" } } },
+      10
+    );
+    expect(variants.some((v) => v.label.startsWith("sec:query"))).toBe(true);
+    expect(variants.some((v) => v.label.startsWith("sec:body"))).toBe(true);
+  });
+
+  test("buildSecurityVariants interleaves query and body security cases within a small cap", () => {
+    const variants = buildSecurityVariants(
+      { queryParams: [ { key: "q", value: "ok" } ], bodyJson: { json: { name: "x" } } },
+      2
+    );
+    expect(variants.length).toBe(2);
+    expect(variants.some((v) => v.label.startsWith("sec:query"))).toBe(true);
+    expect(variants.some((v) => v.label.startsWith("sec:body"))).toBe(true);
   });
 
   test("validateSchema detects required/type/enum", () => {
