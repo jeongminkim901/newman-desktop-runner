@@ -229,10 +229,29 @@ function extractOpenApiServers(openapiObj) {
   return Array.from(new Set(servers));
 }
 
+function normalizeOpenapiVersion(obj) {
+  if (!obj || typeof obj !== "object") return obj;
+  // swagger 2.0 은 버전 형식이 다름 — 건드리지 않음
+  if (obj.swagger !== undefined) return obj;
+  if (obj.openapi !== undefined) {
+    // 숫자(3.0) 또는 짧은 문자열("3.0") → "3.0.0"
+    const parts = String(obj.openapi).trim().split(".");
+    while (parts.length < 3) parts.push("0");
+    return { ...obj, openapi: parts.join(".") };
+  }
+  return obj;
+}
+
 function convertOpenApiToCollection(openapiObj) {
+  const normalized = normalizeOpenapiVersion(openapiObj);
+  if (!normalized || (normalized.openapi === undefined && normalized.swagger === undefined)) {
+    return Promise.reject(
+      new Error("유효한 OpenAPI/Swagger 스펙이 아닙니다. openapi 또는 swagger 버전 필드가 없습니다.")
+    );
+  }
   return new Promise((resolve, reject) => {
     openapiToPostman.convertV2(
-      { type: "json", data: openapiObj },
+      { type: "json", data: normalized },
       { folderStrategy: "Tags" },
       (err, result) => {
         if (err) return reject(err);
