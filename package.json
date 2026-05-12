@@ -9,8 +9,11 @@
     "start": "electron .",
     "lint": "echo \"(no lint yet)\"",
     "test:unit": "jest --runInBand",
-    "test:e2e": "node tests/e2e/run.js",
-    "test": "npm run test:unit && npm run test:e2e",
+    "test:e2e": "npx playwright test --config tests/e2e/playwright.config.js",
+    "test:e2e:ui": "npx playwright test --config tests/e2e/playwright.config.js --project=ui",
+    "test:e2e:api": "npx playwright test --config tests/e2e/playwright.config.js --project=api",
+    "test:e2e:update-snapshots": "npx playwright test --config tests/e2e/playwright.config.js visual.spec.js --update-snapshots",
+    "test": "npm run test:unit && npm run test:e2e:ui",
     "build:win": "set CSC_IDENTITY_AUTO_DISCOVERY=false&& electron-builder --win --x64",
     "build:dir": "electron-builder --win --x64 --dir"
   },
