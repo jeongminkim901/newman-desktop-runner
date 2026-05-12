@@ -9,6 +9,14 @@ const openapiToPostman = require("openapi-to-postmanv2");
 const yaml = require("js-yaml");
 
 let activeRun = null;
+
+function makeRunId(label) {
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  const date = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
+  const time = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+  return `run_${date}_${time}_${label}`;
+}
 const {
   parseVarsJson,
   normalizeCollection,
@@ -497,7 +505,7 @@ ipcMain.handle("run-newman", async (_event, payload) => {
     activeRun = { type: "newman", cancelled: false, runner: null };
     currentRequests = 0;
     emitProgress(label);
-    const runId = `run_${Date.now()}_${label}`;
+    const runId = makeRunId(label);
     const reportJson = path.join(outputDir, `${runId}.json`);
     const reportHtml = path.join(outputDir, `${runId}.html`);
     const logPath = path.join(outputDir, `${runId}.log.txt`);
@@ -736,7 +744,7 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     if (excludeFilters.length && matchAny(name, excludeFilters)) return false;
     return true;
   });
-  const runId = `run_${Date.now()}_explore`;
+  const runId = makeRunId("explore");
   const reportJson = path.join(outputDir, `${runId}.json`);
   const logPath = path.join(outputDir, `${runId}.log.txt`);
   const logStream = fs.createWriteStream(logPath, { flags: "a" });
