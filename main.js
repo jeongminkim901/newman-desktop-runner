@@ -641,6 +641,173 @@ function readEnvVars(environmentPath) {
   }
 }
 
+function injectOpenapiExamples(req, schemaEntry) {
+  if (!schemaEntry || !req || !req.body || req.body.mode !== "raw") return req;
+  const reqBodySchema = schemaEntry.requestBody?.content?.["application/json"]?.schema;
+  if (!reqBodySchema || !reqBodySchema.properties) return req;
+
+  let existing = {};
+  try { existing = JSON.parse(req.body.raw || "{}") || {}; } catch { return req; }
+  if (typeof existing !== "object" || Array.isArray(existing)) return req;
+
+  const merged = { ...existing };
+  for (const [key, prop] of Object.entries(reqBodySchema.properties)) {
+    if (Object.prototype.hasOwnProperty.call(merged, key) && merged[key] !== null && merged[key] !== "") continue;
+    if (prop.example !== undefined) merged[key] = prop.example;
+    else if (prop.default !== undefined) merged[key] = prop.default;
+  }
+
+  return { ...req, body: { ...req.body, raw: JSON.stringify(merged) } };
+}
+
+function generateExploreHtml(report) {
+  const { summary, results, startedAt, endedAt } = report;
+  const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+  // status code distribution
+  const groups = { "2xx": 0, "4xx": 0, "5xx": 0, other: 0 };
+  results.forEach((r) => {
+    const c = r.status || 0;
+    if (c >= 200 && c < 300) groups["2xx"]++;
+    else if (c >= 400 && c < 500) groups["4xx"]++;
+    else if (c >= 500 && c < 600) groups["5xx"]++;
+    else groups.other++;
+  });
+  const maxGroup = Math.max(...Object.values(groups), 1);
+
+  const statusColors = { "2xx": "#2dce89", "4xx": "#fb6340", "5xx": "#f5365c", other: "#adb5bd" };
+  const statusBarSvg = Object.entries(groups).map(([label, count]) => {
+    const pct = Math.round((count / maxGroup) * 160);
+    return `<g><rect x="0" y="0" width="${pct}" height="22" rx="4" fill="${statusColors[label]}"/><text x="${pct + 6}" y="16" font-size="13" fill="#e2e8f0">${count}</text><text x="-38" y="16" font-size="12" fill="#94a3b8" text-anchor="end">${label}</text></g>`;
+  }).map((el, i) => `<g transform="translate(44,${i * 32})">${el}</g>`).join("");
+
+  // variant type distribution
+  const vTypes = summary.variantCountByType || {};
+  const vEntries = Object.entries(vTypes).filter(([, v]) => v > 0);
+  const maxV = Math.max(...vEntries.map(([, v]) => v), 1);
+  const vColors = { body: "#5e72e4", query: "#11cdef", method: "#fb6340", schema: "#f4f172", security: "#f5365c", auth: "#fd7e14", custom: "#adb5bd" };
+  const variantBarSvg = vEntries.map(([label, count]) => {
+    const pct = Math.round((count / maxV) * 160);
+    return `<g><rect x="0" y="0" width="${pct}" height="22" rx="4" fill="${vColors[label] || "#adb5bd"}"/><text x="${pct + 6}" y="16" font-size="13" fill="#e2e8f0">${count}</text><text x="-46" y="16" font-size="12" fill="#94a3b8" text-anchor="end">${label}</text></g>`;
+  }).map((el, i) => `<g transform="translate(56,${i * 32})">${el}</g>`).join("");
+
+  // base responses indexed by request name for diff
+  const baseByName = {};
+  results.filter((r) => r.variant === "base").forEach((r) => { baseByName[r.name] = r; });
+
+  const rows = results.map((r) => {
+    const isSec = r.variantType === "security" || (r.securityWarnings && r.securityWarnings.length);
+    const isAuth = r.variantType === "auth" || (r.authWarnings && r.authWarnings.length);
+    const isFail = r.error || (r.status >= 400);
+    const isBase = r.variant === "base";
+    const rowClass = isSec ? "row-sec" : isAuth ? "row-auth" : isFail && !isBase ? "row-fail" : isBase ? "row-base" : "";
+
+    const tags = [];
+    if (r.isMethodVariant || r.variantType === "method") tags.push("Method");
+    if (r.schemaErrors && r.schemaErrors.length) tags.push("Schema");
+    if (r.semanticErrors && r.semanticErrors.length) tags.push("Semantic");
+    if (isSec) tags.push("⚠ Security");
+    if (isAuth) tags.push("Auth");
+    const tagHtml = tags.map((t) => `<span class="tag ${t.startsWith("⚠") ? "tag-sec" : ""}">${esc(t)}</span>`).join(" ");
+
+    // diff: show base vs variant body
+    let diffHtml = "";
+    if (!isBase && isFail && baseByName[r.name]) {
+      const base = baseByName[r.name];
+      const baseBody = esc(base.response?.body || "").slice(0, 400);
+      const varBody = esc(r.response?.body || "").slice(0, 400);
+      const reqBody = esc(r.request?.body || "").slice(0, 400);
+      diffHtml = `<tr class="diff-row"><td colspan="7"><details><summary>diff 보기 (base ${base.status} → ${r.status || "ERR"})</summary><div class="diff-grid"><div><div class="diff-label">base 응답</div><pre>${baseBody || "(empty)"}</pre></div><div><div class="diff-label">variant 요청 body</div><pre>${reqBody || "(empty)"}</pre><div class="diff-label" style="margin-top:8px">variant 응답</div><pre>${varBody || "(empty)"}</pre></div></div></details></td></tr>`;
+    }
+
+    return `<tr class="${rowClass}">
+      <td>${esc(r.name)}</td>
+      <td>${esc(r.variant)} ${tagHtml}</td>
+      <td>${esc(r.method)}</td>
+      <td class="status-cell ${r.status >= 500 ? "s5" : r.status >= 400 ? "s4" : r.status >= 200 ? "s2" : ""}">${esc(r.status)}</td>
+      <td>${esc(r.durationMs)}</td>
+      <td>${esc(r.error || "")}</td>
+      <td>${r.schemaErrors?.length ? `<span class="schema-err">${r.schemaErrors.map(esc).join("<br>")}</span>` : ""}</td>
+    </tr>${diffHtml}`;
+  }).join("");
+
+  const svgH1 = Math.max(Object.keys(groups).length * 32 + 8, 40);
+  const svgH2 = Math.max(vEntries.length * 32 + 8, 40);
+
+  return `<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>Exploratory Report — ${esc(startedAt)}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#0f172a;color:#e2e8f0;padding:24px;min-height:100vh}
+h2{font-size:20px;font-weight:700;margin-bottom:4px;color:#f1f5f9}
+.subtitle{font-size:12px;color:#64748b;margin-bottom:20px}
+.cards{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:24px}
+.card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:14px 20px;min-width:110px;text-align:center}
+.card .val{font-size:26px;font-weight:700;color:#f1f5f9}
+.card .lbl{font-size:11px;color:#64748b;margin-top:2px}
+.card.warn .val{color:#fb6340}
+.card.danger .val{color:#f5365c}
+.card.ok .val{color:#2dce89}
+.charts{display:flex;flex-wrap:wrap;gap:24px;margin-bottom:28px}
+.chart-box{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:16px 20px}
+.chart-box h3{font-size:13px;color:#94a3b8;margin-bottom:12px;text-transform:uppercase;letter-spacing:.05em}
+svg text{font-family:'Segoe UI',Arial,sans-serif}
+table{width:100%;border-collapse:collapse;font-size:12px;background:#1e293b;border-radius:10px;overflow:hidden}
+th{background:#273549;color:#94a3b8;padding:8px 10px;text-align:left;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+td{padding:7px 10px;border-bottom:1px solid #1e293b;vertical-align:top;color:#cbd5e1}
+tr:last-child td{border-bottom:none}
+.row-base td{background:#162032}
+.row-fail td{background:#1f1520}
+.row-sec td{background:#200d0d}
+.row-auth td{background:#1a1a0e}
+.tag{display:inline-block;padding:1px 7px;border-radius:999px;background:#1e3a5f;color:#7dd3fc;font-size:10px;font-weight:600;margin-left:3px}
+.tag-sec{background:#3b0a0a;color:#fca5a5}
+.status-cell{font-weight:700}
+.s2{color:#2dce89}
+.s4{color:#fb6340}
+.s5{color:#f5365c}
+.schema-err{color:#fde68a;font-size:11px}
+details summary{cursor:pointer;color:#7dd3fc;font-size:11px;padding:4px 0;user-select:none}
+details[open] summary{margin-bottom:8px}
+.diff-row td{background:#0f172a;padding:10px 14px}
+.diff-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.diff-label{font-size:11px;color:#64748b;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
+pre{background:#162032;border:1px solid #334155;border-radius:6px;padding:8px;font-size:11px;color:#94a3b8;overflow-x:auto;white-space:pre-wrap;word-break:break-all}
+</style>
+</head>
+<body>
+<h2>Exploratory Report</h2>
+<div class="subtitle">${esc(startedAt)} → ${esc(endedAt)} &nbsp;·&nbsp; mode: ${esc(summary.ruleMode)} &nbsp;·&nbsp; maxVariants: ${esc(summary.maxVariants)} &nbsp;·&nbsp; delay: ${esc(summary.delayMs)}ms</div>
+<div class="cards">
+  <div class="card ok"><div class="val">${summary.total}</div><div class="lbl">Total</div></div>
+  <div class="card ${summary.failed > 0 ? "danger" : "ok"}"><div class="val">${summary.failed}</div><div class="lbl">Failed</div></div>
+  <div class="card"><div class="val">${summary.total - summary.failed}</div><div class="lbl">Passed</div></div>
+  <div class="card ${summary.schemaFailCount > 0 ? "warn" : ""}"><div class="val">${summary.schemaFailCount}</div><div class="lbl">Schema Fail</div></div>
+  <div class="card ${summary.semanticFailCount > 0 ? "warn" : ""}"><div class="val">${summary.semanticFailCount}</div><div class="lbl">Semantic Fail</div></div>
+  <div class="card ${summary.securityWarnCount > 0 ? "danger" : ""}"><div class="val">${summary.securityWarnCount}</div><div class="lbl">Security Warn</div></div>
+  <div class="card ${summary.authWarnCount > 0 ? "warn" : ""}"><div class="val">${summary.authWarnCount}</div><div class="lbl">Auth Warn</div></div>
+</div>
+<div class="charts">
+  <div class="chart-box">
+    <h3>Status Code 분포</h3>
+    <svg width="220" height="${svgH1}" overflow="visible">${statusBarSvg}</svg>
+  </div>
+  ${vEntries.length ? `<div class="chart-box">
+    <h3>Variant 타입 분포</h3>
+    <svg width="240" height="${svgH2}" overflow="visible">${variantBarSvg}</svg>
+  </div>` : ""}
+</div>
+<table>
+<thead><tr><th>Name</th><th>Variant</th><th>Method</th><th>Status</th><th>ms</th><th>Error</th><th>Schema</th></tr></thead>
+<tbody>${rows}</tbody>
+</table>
+</body>
+</html>`;
+}
+
 ipcMain.handle("run-exploratory", async (_event, payload) => {
   const {
     collectionPath,
@@ -666,7 +833,8 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     exploreExclude,
     methodVariants,
     hardMode,
-    semanticMode
+    semanticMode,
+    useOpenapiExamples
   } = payload;
 
   if (!collectionPath && !openapiPath && !openapiUrl) {
@@ -804,10 +972,9 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     const headersWithAuth = ensureAuthHeader(headers, token);
     const urlRaw = getRequestUrl(item?.request, varsMap, ip);
     const queryParams = getQueryParams(item?.request, varsMap);
-    const bodyInfo = getJsonBody(item?.request, varsMap);
 
+    // resolve schemaEntry first so example injection can use it
     const baseUrl = buildUrlWithQuery(urlRaw, queryParams);
-    const baseBody = bodyInfo?.raw || "";
     let urlPath = "";
     try {
       urlPath = new URL(baseUrl).pathname || "";
@@ -816,6 +983,13 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
     }
     const normalizedPath = normalizePathForMatch(urlPath, openapiServerUrl);
     const schemaEntry = schemaIndex.length ? findSchemaEntry(schemaIndex, method, normalizedPath || urlPath) : null;
+
+    const effectiveReq = useOpenapiExamples && schemaEntry
+      ? injectOpenapiExamples(item?.request, schemaEntry)
+      : item?.request;
+    const bodyInfo = getJsonBody(effectiveReq, varsMap);
+
+    const baseBody = bodyInfo?.raw || "";
     const variantCap = computeVariantCap(method, maxVariants);
     const baseVariants = buildVariants(
       { queryParams, bodyJson: bodyInfo, mode: ruleMode, customVariants },
@@ -1049,14 +1223,7 @@ ipcMain.handle("run-exploratory", async (_event, payload) => {
 
   fs.writeFileSync(reportJson, JSON.stringify(report, null, 2), "utf-8");
   const reportHtml = path.join(outputDir, `${runId}.html`);
-  const rows = results
-    .map((r) => {
-      const tag = r.isMethodVariant ? " <span class=\"tag\">Method</span>" : "";
-      return `<tr><td>${r.name}</td><td>${r.variant}${tag}</td><td>${r.method}</td><td>${r.status || ""}</td><td>${r.durationMs}</td><td>${r.error || ""}</td></tr>`;
-    })
-    .join("");
-  const variantLine = `body=${variantCountByType.body} query=${variantCountByType.query} method=${variantCountByType.method} schema=${variantCountByType.schema} custom=${variantCountByType.custom} security=${variantCountByType.security}`;
-  const html = `<!doctype html><html><head><meta charset=\"utf-8\"><title>Exploratory Report</title><style>body{font-family:Segoe UI,Arial,sans-serif;padding:16px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:6px;font-size:12px}th{background:#f3f4f6;text-align:left}.tag{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:999px;background:#e0f2fe;color:#075985;font-size:10px;font-weight:600}</style></head><body><h2>Exploratory Report</h2><p>Total: ${summary.total} · Failed: ${summary.failed} · Schema fail: ${summary.schemaFailCount} · Semantic fail: ${summary.semanticFailCount} · Security warn: ${summary.securityWarnCount} · Auth warn: ${summary.authWarnCount}</p><p>Variants: ${variantLine}</p><table><thead><tr><th>Name</th><th>Variant</th><th>Method</th><th>Status</th><th>Ms</th><th>Error</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
+  const html = generateExploreHtml(report);
   fs.writeFileSync(reportHtml, html, "utf-8");
 
   const history = readHistory();

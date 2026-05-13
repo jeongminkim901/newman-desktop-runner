@@ -937,3 +937,72 @@ pre#jsonSoloPreview {
 
 .help-tip:hover::after,
 .help-tip:hover::before { opacity: 1; }
+
+/* ─── Compare panel ──────────────────────────────────────────────────────── */
+.compare-panel {
+  padding: 12px 0;
+}
+.compare-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.compare-controls select {
+  margin-top: 4px;
+  width: 100%;
+  max-width: 480px;
+}
+.compare-hint {
+  color: var(--muted);
+  font-size: 13px;
+  padding: 12px 0;
+}
+.compare-summary {
+  display: flex;
+  gap: 24px;
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+}
+.compare-summary .c-ok  { color: var(--accent); }
+.compare-summary .c-fail { color: var(--danger); }
+.cmp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.cmp-table th {
+  background: var(--panel-alt);
+  color: var(--text-dim);
+  padding: 7px 10px;
+  text-align: left;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  border-bottom: 1px solid var(--border-mid);
+}
+.cmp-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+}
+.cmp-table tr.cmp-changed td { background: rgba(251, 99, 64, 0.06); }
+.cmp-table tr.cmp-new td     { background: rgba(45, 206, 137, 0.05); }
+.cmp-table tr.cmp-removed td { background: rgba(100, 116, 139, 0.05); }
+.cmp-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  margin-left: 4px;
+}
+.cmp-badge.changed  { background: rgba(251,99,64,.2);   color: #fb6340; }
+.cmp-badge.new      { background: rgba(45,206,137,.2);  color: var(--accent); }
+.cmp-badge.removed  { background: rgba(100,116,139,.2); color: var(--muted); }
+.cmp-table .s2 { color: var(--accent); font-weight: 600; }
+.cmp-table .s4 { color: #fb6340; font-weight: 600; }
+.cmp-table .s5 { color: var(--danger); font-weight: 600; }

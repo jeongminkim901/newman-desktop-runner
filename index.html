@@ -154,6 +154,11 @@
               <input id="exploreExclude" type="text" placeholder="HealthCheck, /Auth/" />
             </label>
           </div>
+          <label class="toggle wide">
+            <input id="useOpenapiExamples" type="checkbox" />
+            OpenAPI example 값 자동 주입 (선택)
+            <span class="help-tip" data-tip="OpenAPI 스펙에 example/default 값이 있으면 base 요청 body에 자동으로 채웁니다. OpenAPI 로드 시에만 동작합니다.">?</span>
+          </label>
           <label class="wide">
             사용자 변형 (JSON)
             <span class="help-tip" data-tip="직접 변형 JSON을 입력합니다. 형식 오류 시 변형이 무시되거나 실패할 수 있습니다.">?</span>
@@ -230,7 +235,8 @@
           <button id="tabExplore" class="tab" type="button">탐색</button>
           <button id="tabHelp" class="tab" type="button">도움말</button>
           <button id="tabSplit" class="tab" type="button">분할</button>
-          <span class="help-tip" data-tip="미리보기 탭: HTML/JSON/탐색/도움말/분할 전환">?</span>
+          <button id="tabCompare" class="tab" type="button">비교</button>
+          <span class="help-tip" data-tip="미리보기 탭: HTML/JSON/탐색/도움말/분할/비교 전환">?</span>
         </div>
         <div id="previewSummary" class="preview-summary">리포트가 아직 없습니다.</div>
         <div class="cards">
@@ -259,6 +265,14 @@
           </div>
           <iframe id="htmlSoloPreview" title="HTML 미리보기"></iframe>
           <pre id="jsonSoloPreview" class="hidden"></pre>
+          <div id="comparePanel" class="hidden compare-panel">
+            <div class="compare-controls">
+              <label>비교할 실행 선택
+                <select id="compareRunSelect"><option value="">— 실행 선택 —</option></select>
+              </label>
+            </div>
+            <div id="compareTable"></div>
+          </div>
         </div>
           <div class="failures">
           <div class="failures-title">실패 요청</div>

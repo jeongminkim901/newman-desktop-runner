@@ -29,6 +29,7 @@ const exploreMethodVariants = el("exploreMethodVariants");
 const exploreIgnoreTls = el("exploreIgnoreTls");
 const exploreInclude = el("exploreInclude");
 const exploreExclude = el("exploreExclude");
+const useOpenapiExamples = el("useOpenapiExamples");
 const repCli = el("repCli");
 const repHtml = el("repHtml");
 const repJson = el("repJson");
@@ -49,11 +50,15 @@ const tabJson = el("tabJson");
 const tabExplore = el("tabExplore");
 const tabHelp = el("tabHelp");
 const tabSplit = el("tabSplit");
+const tabCompare = el("tabCompare");
 const htmlPreview = el("htmlPreview");
 const jsonPreview = el("jsonPreview");
 const htmlSoloPreview = el("htmlSoloPreview");
 const jsonSoloPreview = el("jsonSoloPreview");
 const splitPreview = el("splitPreview");
+const comparePanel = el("comparePanel");
+const compareRunSelect = el("compareRunSelect");
+const compareTable = el("compareTable");
 const previewSummary = el("previewSummary");
 const previewCards = document.querySelector(".cards");
 const previewPanel = document.querySelector(".preview");
@@ -560,16 +565,19 @@ function setPreviewMode(mode) {
   const isJson = mode === "json";
   const isExplore = mode === "explore";
   const isSplit = mode === "split";
+  const isCompare = mode === "compare";
 
   tabHtml.classList.toggle("active", isHtml);
   tabJson.classList.toggle("active", isJson);
   tabExplore.classList.toggle("active", isExplore);
   tabHelp.classList.remove("active");
   tabSplit.classList.toggle("active", isSplit);
+  if (tabCompare) tabCompare.classList.toggle("active", isCompare);
 
   splitPreview.classList.toggle("hidden", !isSplit);
   htmlSoloPreview.classList.toggle("hidden", !isHtml);
   jsonSoloPreview.classList.toggle("hidden", !(isJson || isExplore));
+  if (comparePanel) comparePanel.classList.toggle("hidden", !isCompare);
 
   if (isSplit) {
     htmlPreview.classList.remove("hidden");
@@ -579,7 +587,7 @@ function setPreviewMode(mode) {
   previewSummary.classList.toggle("hidden", false);
   if (previewCards) previewCards.classList.toggle("hidden", false);
   if (previewPanel) previewPanel.classList.toggle("hidden", false);
-  if (failuresPanel) failuresPanel.classList.toggle("hidden", false);
+  if (failuresPanel) failuresPanel.classList.toggle("hidden", isCompare);
 }
 
 async function loadHtmlPreview(htmlPath) {
@@ -832,6 +840,102 @@ tabSplit.addEventListener("click", () => {
   setPreviewMode("split");
 });
 
+if (tabCompare) {
+  tabCompare.addEventListener("click", () => {
+    populateCompareSelect();
+    setPreviewMode("compare");
+  });
+}
+
+function populateCompareSelect() {
+  if (!compareRunSelect) return;
+  const current = compareRunSelect.value;
+  compareRunSelect.innerHTML = '<option value="">— 비교할 실행 선택 —</option>';
+  historyCache.filter((item) => item.label === "explore" && item.reportJson).forEach((item) => {
+    const opt = document.createElement("option");
+    opt.value = item.reportJson;
+    opt.textContent = `${item.id} · ${item.ok ? "OK" : "FAIL"} · ${item.startedAt || ""}`;
+    compareRunSelect.appendChild(opt);
+  });
+  if (current) compareRunSelect.value = current;
+}
+
+async function loadJsonData(jsonPath) {
+  try {
+    const res = await window.api.readFile(jsonPath);
+    if (res?.ok) return JSON.parse(res.text);
+  } catch { /* empty */ }
+  return null;
+}
+
+async function renderCompareView() {
+  if (!compareTable) return;
+  const path2 = compareRunSelect?.value;
+  if (!path2 || !lastPreviewJsonPath) {
+    compareTable.innerHTML = '<div class="compare-hint">현재 JSON 미리보기를 먼저 열고, 비교할 실행을 선택하세요.</div>';
+    return;
+  }
+  compareTable.innerHTML = '<div class="compare-hint">로딩 중...</div>';
+  const [data1, data2] = await Promise.all([loadJsonData(lastPreviewJsonPath), loadJsonData(path2)]);
+  if (!data1 || !data2) {
+    compareTable.innerHTML = '<div class="compare-hint">JSON 로드 실패</div>';
+    return;
+  }
+  if (data1.type !== "explore" || data2.type !== "explore") {
+    compareTable.innerHTML = '<div class="compare-hint">탐색 실행 결과(explore)만 비교할 수 있습니다.</div>';
+    return;
+  }
+
+  // Index by name+variant
+  const idx2 = {};
+  (data2.results || []).forEach((r) => { idx2[`${r.name}|${r.variant}`] = r; });
+
+  const allKeys = [...new Set([
+    ...(data1.results || []).map((r) => `${r.name}|${r.variant}`),
+    ...(data2.results || []).map((r) => `${r.name}|${r.variant}`)
+  ])];
+
+  const s1 = data1.summary || {};
+  const s2 = data2.summary || {};
+  const run1Label = data1.startedAt || "실행 1";
+  const run2Label = data2.startedAt || "실행 2";
+
+  const summaryHtml = `<div class="compare-summary">
+    <span>실행 1: <strong>${s1.total ?? "-"}</strong> 총 / <strong class="${s1.failed > 0 ? "c-fail" : "c-ok"}">${s1.failed ?? "-"}</strong> 실패</span>
+    <span>실행 2: <strong>${s2.total ?? "-"}</strong> 총 / <strong class="${s2.failed > 0 ? "c-fail" : "c-ok"}">${s2.failed ?? "-"}</strong> 실패</span>
+  </div>`;
+
+  const rowsHtml = allKeys.map((key) => {
+    const r1 = (data1.results || []).find((r) => `${r.name}|${r.variant}` === key);
+    const r2 = idx2[key];
+    const s1v = r1?.status ?? "—";
+    const s2v = r2?.status ?? "—";
+    const changed = r1 && r2 && s1v !== s2v;
+    const [name, variant] = key.split("|");
+    const rowClass = changed ? "cmp-changed" : !r1 ? "cmp-new" : !r2 ? "cmp-removed" : "";
+    const badge = changed ? '<span class="cmp-badge changed">변경</span>' : !r1 ? '<span class="cmp-badge new">추가</span>' : !r2 ? '<span class="cmp-badge removed">제거</span>' : "";
+    const cls1 = r1?.status >= 500 ? "s5" : r1?.status >= 400 ? "s4" : r1?.status >= 200 ? "s2" : "";
+    const cls2 = r2?.status >= 500 ? "s5" : r2?.status >= 400 ? "s4" : r2?.status >= 200 ? "s2" : "";
+    return `<tr class="${rowClass}">
+      <td>${name}</td><td>${variant} ${badge}</td>
+      <td class="${cls1}">${s1v}</td><td>${r1?.durationMs ?? "—"}ms</td>
+      <td class="${cls2}">${s2v}</td><td>${r2?.durationMs ?? "—"}ms</td>
+    </tr>`;
+  }).join("");
+
+  compareTable.innerHTML = `${summaryHtml}
+  <table class="cmp-table">
+    <thead><tr>
+      <th>요청</th><th>Variant</th>
+      <th colspan="2">실행 1 — ${run1Label}</th>
+      <th colspan="2">실행 2 — ${run2Label}</th>
+    </tr></thead>
+    <tbody>${rowsHtml}</tbody>
+  </table>`;
+}
+
+if (compareRunSelect) compareRunSelect.addEventListener("change", renderCompareView);
+
 let isDragging = false;
 splitResizer.addEventListener("mousedown", () => {
   isDragging = true;
@@ -902,6 +1006,7 @@ runBtn.addEventListener("click", async () => {
     methodVariants: !!exploreMethodVariants?.checked,
     hardMode: false,
     semanticMode: "openapi",
+    useOpenapiExamples: !!useOpenapiExamples?.checked,
     failedRequestNames,
     exploreInclude: exploreInclude?.value?.trim(),
     exploreExclude: exploreExclude?.value?.trim(),
