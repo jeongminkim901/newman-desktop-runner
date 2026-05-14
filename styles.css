@@ -1006,3 +1006,58 @@ pre#jsonSoloPreview {
 .cmp-table .s2 { color: var(--accent); font-weight: 600; }
 .cmp-table .s4 { color: #fb6340; font-weight: 600; }
 .cmp-table .s5 { color: var(--danger); font-weight: 600; }
+
+/* ─── Inline diff table ──────────────────────────────────────────────────── */
+.diff-details {
+  margin-top: 6px;
+}
+.diff-details summary {
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--info);
+  user-select: none;
+  padding: 2px 0;
+  list-style: none;
+}
+.diff-details summary::-webkit-details-marker { display: none; }
+.diff-details[open] summary { color: var(--text-dim); margin-bottom: 6px; }
+.diff-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  margin-top: 4px;
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+.diff-table th {
+  background: var(--panel-alt);
+  color: var(--text-dim);
+  padding: 5px 10px;
+  text-align: left;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  font-size: 10px;
+}
+.diff-table td {
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+  vertical-align: middle;
+}
+.diff-table code {
+  font-family: 'Consolas', monospace;
+  color: var(--text);
+  font-size: 11px;
+}
+/* removed row */
+.diff-table tr.dr td { background: rgba(248,113,113,.08); }
+.diff-table tr.dr .dt { color: var(--danger); font-weight: 600; }
+/* added row */
+.diff-table tr.da td { background: rgba(45,206,137,.07); }
+/* changed row */
+.diff-table tr.dc td { background: rgba(251,191,36,.06); }
+.diff-table .ov { color: var(--danger); text-decoration: line-through; opacity: .7; }
+.diff-table .nv { color: var(--accent); }
+/* same row */
+.diff-table tr.ds td { opacity: .45; }

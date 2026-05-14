@@ -680,7 +680,9 @@ async function loadJsonSummary(jsonPath, cachedText) {
       summaryFailed.textContent = String(failed.length);
       summaryAvg.textContent = String(avg);
       summaryGroups.textContent = `${groups["2"]} / ${groups["4"]} / ${groups["5"]}`;
-      renderExploreFailureList(failed, showReqRes.checked);
+      const baseByName = {};
+      results.filter((r) => r.variant === "base").forEach((r) => { baseByName[r.name] = r; });
+      renderExploreFailureList(failed, showReqRes.checked, baseByName);
       return;
     }
 
@@ -757,7 +759,70 @@ function renderFailureList(failed, showDetails) {
   });
 }
 
-function renderExploreFailureList(failed, showDetails) {
+function buildDiffHtml(item, base) {
+  if (!base) return "";
+  const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const label = item.variant || "";
+  const isBody = /^(body:|schema:|sec:body:)/.test(label);
+  const isQuery = /^(query:|sec:query:)/.test(label);
+  const isAuth = label.startsWith("auth:");
+  const isMethod = label.startsWith("method:");
+
+  const makeTable = (header, rows) =>
+    `<table class="diff-table"><thead><tr>${header}</tr></thead><tbody>${rows}</tbody></table>`;
+
+  if (isBody) {
+    let baseObj = {}, varObj = {};
+    try { baseObj = JSON.parse(base.request?.body || "{}") || {}; } catch { baseObj = {}; }
+    try { varObj  = JSON.parse(item.request?.body  || "{}") || {}; } catch { varObj  = {}; }
+    const keys = [...new Set([...Object.keys(baseObj), ...Object.keys(varObj)])];
+    const rows = keys.map((k) => {
+      const inBase = k in baseObj, inVar = k in varObj;
+      const bv = inBase ? esc(JSON.stringify(baseObj[k])) : null;
+      const vv = inVar  ? esc(JSON.stringify(varObj[k]))  : null;
+      if (!inVar)        return `<tr class="dr"><td><code>${esc(k)}</code></td><td>${bv}</td><td class="dt">✕ 제거됨</td></tr>`;
+      if (!inBase)       return `<tr class="da"><td><code>${esc(k)}</code></td><td>—</td><td>${vv}</td></tr>`;
+      if (bv !== vv)     return `<tr class="dc"><td><code>${esc(k)}</code></td><td class="ov">${bv}</td><td class="nv">${vv}</td></tr>`;
+      return `<tr class="ds"><td><code>${esc(k)}</code></td><td>${bv}</td><td>${vv}</td></tr>`;
+    }).join("");
+    return makeTable("<th>필드</th><th>원본</th><th>변형</th>", rows);
+  }
+
+  if (isQuery) {
+    const parseQ = (url) => { const p = {}; try { new URL(url).searchParams.forEach((v, k) => { p[k] = v; }); } catch {} return p; };
+    const baseQ = parseQ(base.url || ""), varQ = parseQ(item.url || "");
+    const keys = [...new Set([...Object.keys(baseQ), ...Object.keys(varQ)])];
+    const rows = keys.map((k) => {
+      const inBase = k in baseQ, inVar = k in varQ;
+      const bv = inBase ? esc(JSON.stringify(baseQ[k])) : null;
+      const vv = inVar  ? esc(JSON.stringify(varQ[k]))  : null;
+      if (!inVar)    return `<tr class="dr"><td><code>${esc(k)}</code></td><td>${bv}</td><td class="dt">✕ 제거됨</td></tr>`;
+      if (!inBase)   return `<tr class="da"><td><code>${esc(k)}</code></td><td>—</td><td>${vv}</td></tr>`;
+      if (bv !== vv) return `<tr class="dc"><td><code>${esc(k)}</code></td><td class="ov">${bv}</td><td class="nv">${vv}</td></tr>`;
+      return `<tr class="ds"><td><code>${esc(k)}</code></td><td>${bv}</td><td>${vv}</td></tr>`;
+    }).join("");
+    return makeTable("<th>파라미터</th><th>원본</th><th>변형</th>", rows);
+  }
+
+  if (isAuth) {
+    const getAuth = (r) => r?.request?.headers?.Authorization || r?.request?.headers?.authorization || "(없음)";
+    return makeTable(
+      "<th>헤더</th><th>원본</th><th>변형</th>",
+      `<tr class="dc"><td><code>Authorization</code></td><td class="ov">${esc(getAuth(base))}</td><td class="nv">${esc(getAuth(item))}</td></tr>`
+    );
+  }
+
+  if (isMethod) {
+    return makeTable(
+      "<th>항목</th><th>원본</th><th>변형</th>",
+      `<tr class="dc"><td><code>Method</code></td><td class="ov">${esc(base.method)}</td><td class="nv">${esc(item.method)}</td></tr>`
+    );
+  }
+
+  return "";
+}
+
+function renderExploreFailureList(failed, showDetails, baseByName = {}) {
   failureList.innerHTML = "";
   if (!failed.length) {
     const li = document.createElement("li");
@@ -789,7 +854,8 @@ function renderExploreFailureList(failed, showDetails) {
       if (item.semanticErrors && item.semanticErrors.length) tags.push("Semantic");
       if (item.securityWarnings && item.securityWarnings.length) tags.push("Security");
       if (item.authWarnings && item.authWarnings.length) tags.push("Auth");
-      const tagHtml = tags.length ? ` ${tags.map((t) => `<span class=\"tag\">${t}</span>`).join(" ")}` : "";
+      const tagHtml = tags.length ? ` ${tags.map((t) => `<span class="tag">${t}</span>`).join(" ")}` : "";
+      const diffHtml = buildDiffHtml(item, baseByName[item.name]);
       li.innerHTML = `
         <div class="row">
           <div><strong>${item.method}</strong> <span class="status">${status}</span>${tagHtml}</div>
@@ -799,6 +865,7 @@ function renderExploreFailureList(failed, showDetails) {
           <div class="url">${item.url || ""}</div>
           <div>${item.variant || ""} ${err ? "· " + err : ""}</div>
         </div>
+        ${diffHtml ? `<details class="diff-details"><summary>▶ 변형 내용 보기</summary>${diffHtml}</details>` : ""}
         ${showDetails ? `<pre class="reqres">요청\n${item.request?.body || ""}</pre><pre class="reqres">응답\n${item.response?.body || ""}</pre>` : ""}
       `;
       failureList.appendChild(li);
